@@ -15,72 +15,107 @@ Parser = {}
 --[[
 guide = {
     group = "",
+    minLevel = 0,
+    maxLevel = 0,
     name = "",
     description = "",
     faction = "",
     steps = {
-        lines = {
+        {
             check = true|false,
             complete_with_next = true|false,
+            xp =
             text = "",
             coords = {
                 x = "",
                 y = "",
                 z = ""
-            }
-        }
-    },
+            },
+            { ... }
+        },
+        {...},
+        {...},
+    }
     next = ""
 }
 ]]
 
 local codes = {
-    N = "NAME",
-    D = "DESCRIPTION",
-    O = "OPTIONAL",
-    OC = "OPTIONAL_COMPLETE_WITH_NEXT",
-    GA = "GUIDE_APPLIES",
+    N   = "NAME",
+    NX  = "NEXT_GUIDE",
+    D   = "DESCRIPTION",
+    O   = "OPTIONAL",
+    OC  = "OPTIONAL_COMPLETE_WITH_NEXT",
+    GA  = "GUIDE_APPLIES",
+    Q   = "QUEST",
+    QA  = "ACCEPT",
+    QC  = "COMPLETE",
+    QT  = "TURNIN",
+    QS  = "SKIP",
+    G   = "GOTO",
+    L   = "LOCATION",
+    XP  = "EXPERIENCE",
+    CI  = "COLLECT_ITEM",
 }
-
-function SplitLinesPreserveEmpty(text)
-    local lines = {}
-    for line in string.gfind(text .. "\n", "([^\n]*)\n") do
-        table.insert(lines, line)
-    end
-    return lines
-end
+local reverseCodes = {}
+for k, v in pairs(codes) do reverseCodes[v] = k end
 
 function Parser:parseGuide(guide, group)
     local parsedGuide = {}
-    local lines = SplitLinesPreserveEmpty(guide)
+    parsedGuide.steps = {}
 
-    for i, line in ipairs(lines) do
-        if line == " " then
-            DEFAULT_CHAT_FRAME:AddMessage("Ligne vide")
+    local lines = {}
+
+    parsedGuide.group = group
+
+    for line in string.gmatch(guide .. "\n", "([^\n]*)\n") do
+
+        -- if line == "" then
+        --     table.insert(parsedGuide.steps, lines)
+        --     lines = {}
+        -- end
+
+        line = string.gsub(line, "^%s*(.-)%s*$", "%1")
+
+        if line ~= "" then
+            
+            local parsedLine = string.gsub(line, "(.-)%[(.-)%]", function(text, code)
+
+                tag = codes[string.sub(code, 1,3)]
+                if tag == nil then tag = codes[string.sub(code, 1,2)] end
+                if tag == nil then tag = codes[string.sub(code, 1,1)] end
+
+                local tagContent = string.sub(code, safe_strlen(reverseCodes[tag]) + 1)
+                tagContent = string.gsub(tagContent, "^%s*", "")
+
+                if tag == "NAME" then
+                    parsedGuide.minLevel, parsedGuide.maxLevel, parsedGuide.name = self:getGuideName(tagContent)
+                    return ""
+                end
+
+            end)
+
+            -- if parsedLine ~= "" then table.insert(lines, parsedLine) end
+
+        else
+            local parsedLine = {
+                text = "",
+                emptyLine = true
+            }
+            table.insert(parsedGuide.steps, parsedLine)
         end
+
     end
 
-end
-
-function Parser:_parseGuide(guide, group)
-    local parsedGuide = {}
-    
-    parsedGuide.name = self:getGuideName(guide)
-    parsedGuide.description = self:getGuideDescription(guide)
-    parsedGuide.group = group
-    parsedGuide.text = guide
+    DumpTable(parsedGuide)
 
     return parsedGuide
+
 end
 
-function Parser:getGuideName(guide)
-    for line in string.gfind(guide, "[^\r\n]+") do
-        local _, _, guideName = string.find(line, "^%[N%s(.-)%]$")
-        if guideName then
-            return guideName
-        end
-    end
-    return nil
+function Parser:getGuideName(content)
+    local lvlMin, lvlMax, guideName = string.match(content, "%s*(%d*%.?%d*)%s*%-?%s*(%d*%.?%d*)%s*(.*)")
+    return lvlMin, lvlMax, guideName
 end
 
 function Parser:getGuideDescription(guide)

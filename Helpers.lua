@@ -13,6 +13,14 @@ if not string.gmatch then
     string.gmatch = string.gfind
 end
 
+-- string.match
+if type(string.match) ~= "function" then
+    string.match = function(s, pattern)
+        local i1, i2, c1, c2, c3, c4, c5, c6, c7, c8, c9 = string.find(s, pattern)
+        return c1, c2, c3, c4, c5, c6, c7, c8, c9
+    end
+end
+
 -- table.unpack
 if not table.unpack then
     table.unpack = unpack

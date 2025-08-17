@@ -2,7 +2,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
 
-    <Frame name="GLV_Settings" parent="UIParent" hidden="false" movable="true" resizable="false" toplevel="true" frameStrata="DIALOG" enableMouse="true">
+    <Frame name="GLV_Settings" parent="UIParent" hidden="true" movable="true" resizable="false" toplevel="true" frameStrata="DIALOG" enableMouse="true">
         <Size>
             <AbsDimension x="900" y="670"/>
         </Size>
@@ -313,7 +313,7 @@
                                 </Size>
                                 <Anchors>
                                     <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsAboutPageContent">
-                                        <Offset x="203" y="-188"/>
+                                        <Offset x="204" y="-200"/>
                                     </Anchor>
                                 </Anchors>
                                 <Layers>
@@ -345,7 +345,7 @@
                                 </Size>
                                 <Anchors>
                                     <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsAboutPageContent">
-                                        <Offset x="335" y="-212"/>
+                                        <Offset x="335" y="-224"/>
                                     </Anchor>
                                 </Anchors>
                                 <Layers>

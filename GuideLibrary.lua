@@ -24,6 +24,7 @@ function GLV:RegisterGuide(guideText, group)
     if guide.name ~= nil then
         if not loadedGuides[guide.group][guide.name] then
             loadedGuides[guide.group][guide.name] = guide.text
+            self.Ace:Print(guide.name .. " loaded")
         else
             self.Ace:Print("Guide déjà chargé : " .. guide.name)
         end
