@@ -47,8 +47,8 @@ It's using TomTom Vanilla for the moment, but I think of implementing my own nav
 Thanks to :
 - |cFFFF0000mrmr|r for the original addon
 - |cFFFF0000Shagu|r for the PfQuest databases
-- |cFFFF0000cladhaire|r for the backport of TomTom
-- |cFFFF0000LaYt|r for the Spells DB
+- |cFFFF0000Laytya|r for the backport of TomTom
+- |cFFFF0000Laytya|r for the Spells DB
 
 
 Original source for VanillaGuide :
