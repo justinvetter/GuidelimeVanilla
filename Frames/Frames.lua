@@ -48,7 +48,7 @@ Thanks to :
 - |cFFFF0000mrmr|r for the original addon
 - |cFFFF0000Shagu|r for the PfQuest databases
 - |cFFFF0000cladhaire|r for the backport of TomTom
-- |cFFFF0000Schaka|r for the Spell DB with the addon GetSpellInfoVanilla
+- |cFFFF0000LaYt|r for the Spells DB
 
 
 Original source for VanillaGuide :
@@ -57,7 +57,7 @@ My rewrite of VanillaGuide to VanillaGuideReloaded :
 ]]
 
     local content = GLV_SettingsAboutPageContent
-    content:SetWidth(700)                 -- Largeur max avant retour à la ligne
+    content:SetWidth(700)                -- Largeur max avant retour à la ligne
     content:SetNonSpaceWrap(true)        -- Permet de couper même sans espaces
     content:SetJustifyH("LEFT")          -- Alignement horizontal
     content:SetJustifyV("TOP")           -- Alignement vertical

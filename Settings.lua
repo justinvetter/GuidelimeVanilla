@@ -12,7 +12,7 @@ local GLV = LibStub("GuidelimeVanilla")
 local Settings = {}
 
 local defaults = {
-    profile = {
+    char = {
         Locale = "enUS",
         TomTomEnabled = false,
         UI = {
@@ -29,8 +29,10 @@ local defaults = {
             Class = "Unknown",
         },
         Guide = {
+            CurrentGroup = "Unknown",
             CurrentGuide = "Unknown",
             CurrentStep = 0,
+            StepState = {},
         },
         QuestTracker = {
             Accepted = {},
@@ -52,12 +54,12 @@ end
 
 function Settings:GetProfile()
     if not self.db then self:InitializeDB() end
-    return self.db.profile
+    return self.db.char
 end
 
 function Settings:GetOption(keys)
     if not self.db then self:InitializeDB() end
-    local profile = self.db.profile
+    local profile = self.db.char
     if type(keys) ~= "table" then return nil end
 
     for i = 1, safe_tablelen(keys) do
@@ -71,7 +73,7 @@ end
 -- Value is the first parameter, as we're going into multi table
 function Settings:SetOption(value, keys)
     if not self.db then self:InitializeDB() end
-    local profile = self.db.profile
+    local profile = self.db.char
     if type(keys) ~= "table" then return end
 
     local len = safe_tablelen(keys)

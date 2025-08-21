@@ -4,15 +4,25 @@
 ## Author: Grommey
 ## Version: 0.1.0
 ## DefaultState: enabled
-## SavedVariables: GuidelimeVanillaDB
+## SavedVariablesPerCharacter: GuidelimeVanillaDB
+## OptionalDeps: Ace2, TomTom
 
 libs\libs.xml
+db\initdb.xml
 
 Core.lua
-Helpers.lua
-GuideParser.lua
-GuideLibrary.lua
 Settings.lua
+
+Helpers\Helpers.lua
+Helpers\DBTools.lua
+Helpers\Colors.lua
+
+Guides\TomTomIntegration.lua
+Guides\GuideParser.lua
+Guides\GuideLibrary.lua
+Guides\GuideWriter.lua
+
+Guides\Events\Quests.lua
 
 Frames\Frames.lua
 Frames\MainFrame.xml

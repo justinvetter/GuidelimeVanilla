@@ -5,7 +5,7 @@
     <Frame name="GLV_Main" parent="UIParent" toplevel="true" movable="true" resizable="false" frameStrata="DIALOG" enableMouse="true" hidden="false">
 
         <Size>
-            <AbsDimension x="360" y="550"/>
+            <AbsDimension x="450" y="400"/>
         </Size>
         <Anchors>
             <Anchor point="CENTER"/>
@@ -56,23 +56,7 @@
 
         <Frames>
 
-            <Button name="$parentPrevStep" inherits="UIPanelButtonTemplate">
-                <Size>
-                    <AbsDimension x="24" y="24"/>
-                </Size>
-                <Anchors>
-                    <Anchor point="TOPLEFT">
-                        <Offset x="10" y="-8"/>
-                    </Anchor>
-                </Anchors>
-                <NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
-                <PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
-                <Scripts>
-                    <OnClick>GLV_NextPrevStep(false)</OnClick>
-                </Scripts>
-            </Button>
-
-            <Button name="$parentNextStep" inherits="UIPanelButtonTemplate">
+            <Button name="$parentClose" inherits="UIPanelButtonTemplate">
                 <Size>
                     <AbsDimension x="24" y="24"/>
                 </Size>
@@ -81,23 +65,72 @@
                         <Offset x="-10" y="-8"/>
                     </Anchor>
                 </Anchors>
-                <NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up"/>
-                <PushedTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Down"/>
+                <NormalTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Up"/>
+                <PushedTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Down"/>
                 <Scripts>
                     <OnClick>GLV_NextPrevStep(true)</OnClick>
                 </Scripts>
             </Button>
 
-            <Frame name="$parentScrollFrame" inherits="UIPanelFrameTemplate">
+            <Frame name="$parentLoadedGuide" hidden="false">
+
                 <Size>
-                    <AbsDimension x="348" y="470"/>
+                    <AbsDimension x="400" y="30"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" RelativeTo="$parentTitle" RelativePoint="BOTTOM">
+                        <Offset x="-10" y="-5"/>
+                    </Anchor>
+                </Anchors>
+
+                <Frames>
+                    <Frame name="$parentClassIcon">
+                        <Size>
+                            <AbsDimension x="20" y="20"/>
+                        </Size>
+                    </Frame>
+                </Frames>
+
+                <Layers>
+                    <Layer>
+                        <FontString name="$parentTitle" inherits="GameFontNormalSmall" font="Fonts\FRIZQT__.TTF" JustifyV="MIDDLE" JustifyH="LEFT">
+                            <FontHeight>
+                                <AbsValue val="12"/>
+                            </FontHeight>
+                        </FontString>
+                    </Layer>
+                    <Layer>
+                        <FontString name="$parentCounter" inherits="GameFontNormalSmall" font="Fonts\FRIZQT__.TTF" JustifyV="MIDDLE" JustifyH="RIGHT">
+                            <FontHeight>
+                                <AbsValue val="12"/>
+                            </FontHeight>
+                        </FontString>
+                    </Layer>
+                </Layers>
+
+            </Frame>
+
+            <ScrollFrame name="$parentScrollFrame" inherits="UIPanelScrollFrameTemplate">
+                <Size>
+                    <AbsDimension x="400" y="285"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOPLEFT">
-                        <Offset x="6" y="-35"/>
+                        <Offset x="15" y="-65"/>
                     </Anchor>
                 </Anchors>
-            </Frame>
+
+                <ScrollChild>
+                    <Frame name="$parentScrollChild">
+                        <Size>
+                            <AbsDimension x="300" y="1"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPLEFT"/>
+                        </Anchors>
+                    </Frame>
+                </ScrollChild>
+            </ScrollFrame>
 
             <Frame name="$parentDropdown" inherits="UIDropDownMenuTemplate">
                 <Anchors>
