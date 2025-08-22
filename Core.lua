@@ -82,14 +82,33 @@ function addon:OnEnable()
         GLV.GossipHandler:Init()
     end
 
+    -- Set debug mode for testing
+    GLV.Debug = true
+    
     -- Initialize TomTom integration AFTER the guide is loaded
     if GLV.TomTomIntegration then
         -- Wait a bit for TomTom to load, then initialize
         self:ScheduleEvent(function()
             if GLV.TomTomIntegration then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Initializing TomTom integration...")
                 GLV.TomTomIntegration:Init()
+                
+                -- Force update the waypoint for the current step after a delay
+                self:ScheduleEvent(function()
+                    if GLV.TomTomIntegration and GLV.CurrentGuide then
+                        local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+                        local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+                        
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Force-updating TomTom waypoint for step " .. currentStep)
+                        
+                        if currentStep > 0 and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
+                            local stepData = GLV.CurrentDisplaySteps[currentStep]
+                            GLV.TomTomIntegration:OnStepChanged(stepData)
+                        end
+                    end
+                end, 1.0)
             end
-        end, 1.0) -- 1 second delay
+        end, 2.0) -- 2 seconds delay to ensure everything is loaded properly
     end
 end
 

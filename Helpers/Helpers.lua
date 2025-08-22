@@ -40,6 +40,8 @@ function safe_sub(str, i, j)
     return string.sub(str, i, j)
 end
 
+
+
 -- naive calculation of the size of a table (only numeric keys)
 function safe_tablelen(t)
     if type(t) ~= "table" then return 0 end

@@ -123,7 +123,7 @@ function Parser:parseGuide(guide, group)
                             parsedLine.questId = tonumber(questId)
                             parsedLine.hasCheckbox = true
                             
-                            -- Add step type for TomTom integration
+                            -- Add step type and questId for tracking
                             if tag == "ACCEPT" then
                                 parsedLine.stepType = "ACCEPT"
                                 fullText = fullText .. "Accept "
@@ -136,6 +136,14 @@ function Parser:parseGuide(guide, group)
                                 parsedLine.stepType = "COMPLETE"
                                 fullText = fullText .. "Complete "
                             end
+                            
+                            -- Store quest tag for multi-quest step handling
+                            if not parsedLine.questTags then parsedLine.questTags = {} end
+                            table.insert(parsedLine.questTags, {
+                                tag = tag,
+                                questId = tonumber(questId),
+                                title = questTitle
+                            })
                             
                             -- Add coordinates to the parsed line
                             if questCoords and table.getn(questCoords) > 0 then

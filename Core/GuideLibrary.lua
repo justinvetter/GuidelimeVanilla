@@ -229,17 +229,47 @@ function GLV:LoadGuide(group, guideId)
     -- Update TomTom waypoint for the current active step
     if GLV.TomTomIntegration then
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
-        if currentStep > 0 and guide.steps and guide.steps[currentStep] then
-            local stepData = guide.steps[currentStep]
-            -- Try to update waypoint, but only if TomTom is ready
-            if TomTom and TomTom.AddMFWaypoint then
+        
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Updating TomTom for step: " .. currentStep)
+        end
+        
+        if currentStep > 0 then
+            local stepData = nil
+            
+            -- First try to get the step from CurrentDisplaySteps (which has all the coordinates)
+            if GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
+                stepData = GLV.CurrentDisplaySteps[currentStep]
+                
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Using display step data")
+                end
+            -- Then fallback to raw guide steps
+            elseif guide and guide.steps and guide.steps[currentStep] then
+                stepData = guide.steps[currentStep]
+                
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Using raw guide step data")
+                end
+            end
+            
+            -- Try to update waypoint if we have step data and TomTom is ready
+            if stepData and TomTom and TomTom.AddMFWaypoint then
                 -- Add safety check to prevent errors
                 local success, err = pcall(function()
                     GLV.TomTomIntegration:OnStepChanged(stepData)
                 end)
                 if not success then
                     -- Log error but don't crash
-                    DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: TomTom error: " .. tostring(err))
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r TomTom error: " .. tostring(err))
+                end
+            elseif GLV.Debug then
+                if not stepData then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r No step data found for step " .. currentStep)
+                elseif not TomTom then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r TomTom not available")
+                elseif not TomTom.AddMFWaypoint then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r TomTom.AddMFWaypoint not available")
                 end
             end
         end

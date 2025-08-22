@@ -213,8 +213,46 @@ function TomTomIntegration:UpdateWaypointForStep(stepData)
     local targetCoords = nil
     local stepType = self:GetStepType(stepData)
     
-    -- Check for coordinates in stepData.coords first
-    if stepData and stepData.coords and table.getn(stepData.coords) > 0 then
+    -- Debug for coordinates in the current step
+    if GLV.Debug then
+        if stepData then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Updating waypoint for step type: " .. (stepType or "unknown"))
+            if stepData.coords then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Step has " .. table.getn(stepData.coords) .. " direct coordinates")
+            end
+        end
+    end
+    
+    -- Extract coordinates from [TAR] tags first
+    local tarCoords = {}
+    if stepData and stepData.lines then
+        for _, line in ipairs(stepData.lines) do
+            local lineText = line.text or ""
+            for targetId in string.gmatch(lineText, "%[TAR(%d+)%]") do
+                -- Utiliser les fonctions de DBTools pour récupérer les coordonnées
+                local npcCoords = GLV:GetNPCCoordinates(targetId)
+                if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
+                    table.insert(tarCoords, {x = npcCoords.x, y = npcCoords.y, z = npcCoords.z, type = "target", npcId = tonumber(targetId)})
+                    
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Found TAR coordinates for " .. targetId .. ": " .. npcCoords.x .. ", " .. npcCoords.y .. " in zone " .. npcCoords.z)
+                    end
+                else
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r No coordinates found for target ID: " .. targetId)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- First try to use TAR coordinates
+    if table.getn(tarCoords) > 0 then
+        targetCoords = tarCoords[1]
+    end
+    
+    -- If no TAR coords, check for coordinates in stepData.coords
+    if not targetCoords and stepData and stepData.coords and table.getn(stepData.coords) > 0 then
         targetCoords = self:FindCoordinatesByType(stepData.coords, stepType)
     end
     
@@ -238,6 +276,14 @@ function TomTomIntegration:UpdateWaypointForStep(stepData)
     if targetCoords then
         local description = self:GetStepDescription(stepData, targetCoords)
         self:AddWaypoint(targetCoords, description)
+        
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Added waypoint at " .. targetCoords.x .. ", " .. targetCoords.y)
+        end
+    else
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r No coordinates found for this step")
+        end
     end
 end
 
@@ -260,17 +306,38 @@ end
 -- Initialize integration
 function TomTomIntegration:Init()
     if self:IsAvailable() then
+        -- Debug message to confirm TomTom is available
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r TomTom integration initialized")
+        end
+        
         -- Try to update waypoint for current guide if available
         if GLV.CurrentGuide then
-            local currentStep = GLV.Settings:GetOption({"Guide", "CurrentStep"}) or 0
+            -- Get the current guide ID for correct settings path
+            local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+            local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+            
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Current guide: " .. currentGuideId .. ", Current step: " .. currentStep)
+            end
+            
             if currentStep > 0 then
                 -- Use displaySteps instead of raw guide.steps to get the grouped steps with coordinates
-                local displaySteps = GLV.CurrentDisplaySteps
-                if displaySteps and displaySteps[currentStep] then
-                    local stepData = displaySteps[currentStep]
+                if GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
+                    local stepData = GLV.CurrentDisplaySteps[currentStep]
                     self:OnStepChanged(stepData)
+                else
+                    -- Fallback: try to get step directly from the guide
+                    if GLV.CurrentGuide and GLV.CurrentGuide.steps and GLV.CurrentGuide.steps[currentStep] then
+                        local stepData = GLV.CurrentGuide.steps[currentStep]
+                        self:OnStepChanged(stepData)
+                    end
                 end
             end
+        end
+    else
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r TomTom not available")
         end
     end
 end
