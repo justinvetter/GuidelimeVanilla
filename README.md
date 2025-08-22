@@ -1,6 +1,6 @@
 # GuideLime Vanilla
 
-A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced guide system with automatic quest tracking, TomTom integration, and smart UI management.
+A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced guide system with automatic quest tracking, TomTom integration, and smart UI management. **Now includes Sage 1-60 Alliance leveling guides built-in!**
 
 ## 🌟 Features
 
@@ -9,6 +9,7 @@ A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced
 - **Checkbox Interface**: Visual progress tracking with clickable checkboxes
 - **Step Highlighting**: Active steps are highlighted with a distinctive color scheme
 - **Auto-scrolling**: Automatically scrolls to show the current active step
+- **Built-in Guides**: Includes Sage 1-60 Alliance leveling guides
 
 ### 🗺️ TomTom Integration
 - **Automatic Waypoints**: Creates TomTom waypoints for quest objectives
@@ -112,13 +113,19 @@ The addon automatically saves your progress and preferences:
 GuideLimeVanilla/
 ├── Core.lua                 # Main addon initialization
 ├── Settings.lua             # Settings and saved variables management
-├── Guides/
+├── Core/                    # Core addon functionality
 │   ├── GuideLibrary.lua     # Guide loading and management
 │   ├── GuideParser.lua      # Guide text parsing
 │   ├── GuideWriter.lua      # UI rendering and management
 │   ├── TomTomIntegration.lua # TomTom waypoint integration
 │   └── Events/
 │       └── Quests.lua       # Quest event handling
+├── Guides/                  # Guide files
+│   ├── Sage/                # Sage 1-60 Alliance guides
+│   │   ├── Sage_Guide_1-11_Dun_Morogh.lua
+│   │   ├── Sage_Guide_1-11_Teldrassil.lua
+│   │   └── Sage_Guide_1-11_Elwynn_Forest.lua
+│   └── guides.xml           # Guide loading configuration
 ├── Helpers/
 │   ├── DBTools.lua          # Database query functions
 │   └── Helpers.lua          # Utility functions
@@ -130,6 +137,31 @@ GuideLimeVanilla/
     └── items.lua            # Item information
 ```
 
+## 📚 Adding New Guides
+
+### Guide Format
+Guides use the standard Guidelime format:
+```
+[N 1-11 Guide Name]
+[D Description of the guide]
+[GA Alliance] // or Horde
+[OC] Optional completion step
+[QA 123 Quest Accept]
+[QC 123 Quest Complete]
+[QT 123 Quest Turn In]
+[NX 11-13 Next Guide]
+```
+
+### Adding to the Addon
+1. Place your guide file in the `Guides/` directory (create subdirectories for organization)
+2. Add the file to `Guides/guides.xml`
+3. Restart WoW or use `/reload`
+
+### Example guides.xml entry:
+```xml
+<Script file="MyGuides\My_Guide_1-10_Starting_Zone.lua"/>
+```
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -139,6 +171,7 @@ GuideLimeVanilla/
 
 ### Debug Commands
 - `/reload`: Reloads the UI and addon state
+- `/run GLV:DebugGuides()`: Shows debug information about loaded guides
 - Check chat for any error messages or debug information
 
 ## 🤝 Contributing
@@ -147,6 +180,11 @@ GuideLimeVanilla/
 - **Code Style**: Follow existing code patterns and conventions
 - **Testing**: Test changes thoroughly in WoW Classic 1.12
 - **Documentation**: Update this README for any new features
+
+### Adding Guides
+- **Format**: Use standard Guidelime format
+- **Testing**: Test guides thoroughly in-game
+- **Documentation**: Update guides.xml when adding new guides
 
 ### Reporting Issues
 - **Bug Reports**: Include steps to reproduce and any error messages
@@ -161,6 +199,7 @@ This addon is provided as-is for educational and entertainment purposes. Use at 
 
 - **Original GuideLime**: For the foundation and inspiration
 - **WoW Classic Community**: For testing and feedback
+- **Sage**: For the excellent 1-60 Alliance leveling guides
 - **Shagu**: For the databases (Quests, Items, Units, ...)
 - **LaYT**: For the spells database, and TomTom TWOW !
 

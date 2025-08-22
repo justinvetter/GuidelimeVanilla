@@ -169,10 +169,12 @@ function TomTomIntegration:GetStepDescription(stepData, targetCoords)
     local description = "Guide Step"
     
     local questId = 0
-    for _, line in ipairs(stepData.lines) do
-        if line.questId then
-            questId = line.questId
-            break
+    if stepData and stepData.lines then
+        for _, line in ipairs(stepData.lines) do
+            if line.questId then
+                questId = line.questId
+                break
+            end
         end
     end
     

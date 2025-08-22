@@ -32,7 +32,7 @@ local defaults = {
             CurrentGroup = "Unknown",
             CurrentGuide = "Unknown",
             CurrentStep = 0,
-            StepState = {},
+            Guides = {}, -- Will store data for each guide by guideId
         },
         QuestTracker = {
             Accepted = {},
@@ -46,19 +46,40 @@ function Settings:GetDefaults()
 end
 
 function Settings:InitializeDB()
+    -- Wait for GLV.Ace.db to be initialized
     if not GLV.Ace or not GLV.Ace.db then
-        error("GLV.Ace.db is not initialized yet!")
+        -- Schedule a retry in a bit
+        if GLV.Ace and GLV.Ace.ScheduleEvent then
+            GLV.Ace:ScheduleEvent(function()
+                if GLV.Ace and GLV.Ace.db then
+                    self:InitializeDB()
+                end
+            end, 0.1)
+        end
+        return
     end
+    
     self.db = GLV.Ace.db
 end
 
 function Settings:GetProfile()
-    if not self.db then self:InitializeDB() end
+    if not self.db then 
+        self:InitializeDB()
+        if not self.db then
+            return nil
+        end
+    end
     return self.db.char
 end
 
 function Settings:GetOption(keys)
-    if not self.db then self:InitializeDB() end
+    if not self.db then 
+        self:InitializeDB()
+        if not self.db then
+            return nil
+        end
+    end
+    
     local profile = self.db.char
     if type(keys) ~= "table" then return nil end
 
@@ -72,7 +93,13 @@ end
 
 -- Value is the first parameter, as we're going into multi table
 function Settings:SetOption(value, keys)
-    if not self.db then self:InitializeDB() end
+    if not self.db then 
+        self:InitializeDB()
+        if not self.db then
+            return
+        end
+    end
+    
     local profile = self.db.char
     if type(keys) ~= "table" then return end
 

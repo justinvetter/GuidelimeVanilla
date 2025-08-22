@@ -10,12 +10,26 @@ Quest Tracker. Track when quests are accepted / completed
 local GLV = LibStub("GuidelimeVanilla")
 
 local QuestTracker = {}
+QuestTracker.__index = QuestTracker
+
+-- Make QuestTracker inherit from EventFrame
+setmetatable(QuestTracker, {__index = CreateFrame("Frame")})
 
 -- Utility function to apply highlighting to all frames
 local function applyHighlighting(scrollChild, activeStepIndex)
     if not scrollChild then return end
     
+    -- Use CurrentDisplayStepsCount if available, otherwise try to count manually
     local totalSteps = GLV.CurrentDisplayStepsCount or 0
+    if totalSteps == 0 then
+        -- Fallback: try to count steps manually
+        local stepIndex = 1
+        while getglobal(scrollChild:GetName().."Step"..stepIndex) do
+            totalSteps = stepIndex
+            stepIndex = stepIndex + 1
+        end
+    end
+    
     for di = 1, totalSteps do
         local frameName = scrollChild:GetName().."Step"..di
         local frame = getglobal(frameName)
@@ -26,6 +40,7 @@ local function applyHighlighting(scrollChild, activeStepIndex)
     end
 end
 
+-- Hook the GOSSIP_SHOW event to detect innkeeper conversations
 function QuestTracker:Init()
     -- Initialize or repair store
     local store = GLV.Settings:GetOption({"QuestTracker"}) or {}
@@ -41,11 +56,9 @@ function QuestTracker:Init()
     originalQuestRewardCompleteButton_OnClick = QuestRewardCompleteButton_OnClick
 	QuestRewardCompleteButton_OnClick = QuestRewardCompleteButton
     
-    -- Hook abandon de quête
+    -- Hook quest abandon
     originalAbandonQuest = AbandonQuest
     AbandonQuest = QuestAbandon
-    
-
 end
 
 function QuestTracker:TrackAccepted(id, title)
@@ -66,7 +79,8 @@ function QuestTracker:TrackAccepted(id, title)
 
         
         -- Mark the corresponding guide step as done using questId
-        local stepState = GLV.Settings:GetOption({"Guide","StepState"}) or {}
+        local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
+        local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
         local firstUnchecked = 0
         
         if GLV.CurrentGuide and GLV.CurrentGuide.steps then
@@ -79,7 +93,7 @@ function QuestTracker:TrackAccepted(id, title)
             end
             
             -- Save stepState
-            GLV.Settings:SetOption(stepState, {"Guide","StepState"})
+            GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
             
             -- Find the NEXT unchecked step (not the current one)
             local diCount = GLV.CurrentDisplayStepsCount or 0
@@ -124,7 +138,7 @@ function QuestTracker:TrackAccepted(id, title)
                     end
                 end
             
-            GLV.Settings:SetOption(firstUnchecked, {"Guide","CurrentStep"})
+            GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
             
             -- Update visual highlighting immediately
             if firstUnchecked > 0 then
@@ -170,7 +184,8 @@ function QuestRewardCompleteButton()
         GLV.Settings:SetOption(store, {"QuestTracker"})
     end
     -- Recompute active step
-    local stepState = GLV.Settings:GetOption({"Guide","StepState"}) or {}
+    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local firstUnchecked = 0
     if GLV.CurrentGuide and GLV.CurrentGuide.steps then
         local totalSteps = table.getn(GLV.CurrentGuide.steps)
@@ -181,7 +196,7 @@ function QuestRewardCompleteButton()
                 break
             end
         end
-        GLV.Settings:SetOption(firstUnchecked, {"Guide","CurrentStep"})
+        GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
     end
     if GLV.RefreshGuide then GLV:RefreshGuide() end
     originalQuestRewardCompleteButton_OnClick();
@@ -207,10 +222,13 @@ end
 
 -- Public function to refresh highlighting (can be called from GuideWriter)
 function QuestTracker:RefreshHighlighting()
-    local scrollChild = GLV_MainScrollFrameScrollChild
+    local scrollChild = getglobal("GLV_MainScrollFrameScrollChild")
     if scrollChild then
-        local activeStep = GLV.Settings:GetOption({"Guide","CurrentStep"}) or 0
+        -- Get the current guide ID and then the current step for that guide
+        local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+        local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
         if activeStep > 0 then
+            -- Use the utility function to apply highlighting
             applyHighlighting(scrollChild, activeStep)
         end
     end

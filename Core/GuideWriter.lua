@@ -130,10 +130,10 @@ function GLV:RefreshGuide()
         scrollChild = GLV_MainScrollFrame:GetScrollChild()
     end
     if not scrollChild then return end
-    self:CreateGuideSteps(scrollChild, guide)
+    self:CreateGuideSteps(scrollChild, guide, guide.id)
 end
 
-function GLV:CreateGuideSteps(scrollChild, guide)
+function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     if not scrollChild or not scrollChild.GetNumChildren then return end
     if not guide or not guide.steps then return end
 
@@ -148,8 +148,9 @@ function GLV:CreateGuideSteps(scrollChild, guide)
 
     local lastLine = nil
     local totalHeight = 0
-    local activeStep = GLV.Settings:GetOption({"Guide","CurrentStep"}) or 0
-    local stepState = GLV.Settings:GetOption({"Guide","StepState"}) or {}
+    -- Use the passed guideId instead of guide.id
+    local currentGuideId = guideId or guide.id or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local displaySteps = {}
     -- expose current guide to other modules (e.g., quest tracker)
     GLV.CurrentGuide = guide
@@ -192,7 +193,9 @@ function GLV:CreateGuideSteps(scrollChild, guide)
         table.insert(displaySteps, stepFrameData)
     end
 
-    GLV_MainLoadedGuideCounter:SetText("("..activeStep.."/"..safe_tablelen(displaySteps)..")")
+    -- Get the current step for this specific guide
+    local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+    GLV_MainLoadedGuideCounter:SetText("("..currentStep.."/"..safe_tablelen(displaySteps)..")")
 
     -- publish mapping and display metadata for other modules
     GLV.CurrentStepIndexMap = originalIndexToDisplayIndex
@@ -309,54 +312,54 @@ function GLV:CreateGuideSteps(scrollChild, guide)
                 if origIdx then
                     stepState[origIdx] = checked
                 end
-                GLV.Settings:SetOption(stepState, {"Guide","StepState"})
+                GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
                 -- recompute activeStep as first unchecked
                 local totalSteps = table.getn(displaySteps)
-                local firstUnchecked = 0
+                local newActiveStep = 0
                 for i2 = 1, totalSteps do
                     if displaySteps[i2] and displaySteps[i2].hasCheckbox then
                         local orig = displayIndexToOriginalIndex[i2]
                         if orig and not stepState[orig] then
-                        firstUnchecked = i2
-                        break
+                            newActiveStep = i2
+                            break
                         end
                     end
                 end
-                GLV.Settings:SetOption(firstUnchecked, {"Guide","CurrentStep"})
-                GLV_MainLoadedGuideCounter:SetText("("..tostring(firstUnchecked).."/"..tostring(totalSteps)..")")
+                GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+                GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(totalSteps)..")")
                 -- visually highlight the new active step and reset others
                 for i2 = 1, totalSteps do
                     local f = getglobal(scrollChild:GetName().."Step"..i2)
                     if f and f.SetBackdropColor then
-                        local col = (i2 == firstUnchecked) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
+                        local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
                         f:SetBackdropColor(unpack(col))
                     end
                 end
                 
                 -- Also update the global CurrentStep for other modules
-                GLV.Settings:SetOption(firstUnchecked, {"Guide","CurrentStep"})
+                GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
                 
                 -- Update TomTom waypoint for the new active step
-                if firstUnchecked > 0 and GLV.TomTomIntegration then
-                    local activeStepData = displaySteps[firstUnchecked]
+                if newActiveStep > 0 and GLV.TomTomIntegration then
+                    local activeStepData = displaySteps[newActiveStep]
                     if activeStepData then
                         GLV.TomTomIntegration:OnStepChanged(activeStepData)
                     end
                 end
                 
                 -- Scroll to show the new active step at the top (only when checking a box)
-                if checked and firstUnchecked > 0 and GLV_MainScrollFrame then
+                if checked and newActiveStep > 0 and GLV_MainScrollFrame then
                     -- Calculate the exact position: sum of all previous step heights + spacing
                     local targetScroll = 0
-                    for i = 1, firstUnchecked - 1 do
+                    for i = 1, newActiveStep - 1 do
                         local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
                         if stepFrame and stepFrame.GetHeight then
                             targetScroll = targetScroll + stepFrame:GetHeight()
                         end
                     end
                     -- Add spacing between frames (spacing * (number of steps - 1))
-                    if firstUnchecked > 1 then
-                        targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (firstUnchecked - 1))
+                    if newActiveStep > 1 then
+                        targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (newActiveStep - 1))
                     end
                     -- Ensure we don't scroll below 0
                     targetScroll = math.max(0, targetScroll)
@@ -378,53 +381,62 @@ function GLV:CreateGuideSteps(scrollChild, guide)
     end
 
     scrollChild:SetHeight(math.max(1, totalHeight))
-    -- set counter based on first unchecked step
+    -- Use the saved CurrentStep for this guide, or calculate first unchecked if none saved
     local totalSteps = table.getn(displaySteps)
-    local firstUnchecked = 0
-    for i2 = 1, totalSteps do
-        if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-            local orig = displayIndexToOriginalIndex[i2]
-            if orig and not stepState[orig] then
-                firstUnchecked = i2
-                break
+    local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+    
+    -- If no saved step, find first unchecked
+    if activeStep == 0 then
+        for i2 = 1, totalSteps do
+            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                local orig = displayIndexToOriginalIndex[i2]
+                if orig and not stepState[orig] then
+                    activeStep = i2
+                    break
+                end
             end
         end
+        -- Save the calculated step
+        if activeStep > 0 then
+            GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+        end
     end
-    GLV.Settings:SetOption(firstUnchecked, {"Guide","CurrentStep"})
-    GLV_MainLoadedGuideCounter:SetText("("..tostring(firstUnchecked).."/"..tostring(totalSteps)..")")
+    
+    GLV_MainLoadedGuideCounter:SetText("("..tostring(activeStep).."/"..tostring(totalSteps)..")")
+    
     -- highlight active frame at initial render and normalize others
     for i2 = 1, totalSteps do
         local f = getglobal(scrollChild:GetName().."Step"..i2)
         if f and f.SetBackdropColor then
-            local col = (i2 == firstUnchecked) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
+            local col = (i2 == activeStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
             f:SetBackdropColor(unpack(col))
         end
     end
     
     -- Set initial TomTom waypoint
-    if firstUnchecked > 0 and GLV.TomTomIntegration then
-        local activeStepData = displaySteps[firstUnchecked]
+    if activeStep > 0 and GLV.TomTomIntegration then
+        local activeStepData = displaySteps[activeStep]
         if activeStepData then
             GLV.TomTomIntegration:OnStepChanged(activeStepData)
         end
     end
     
     -- Scroll to show the active step at the top (initial load)
-    if firstUnchecked > 0 and GLV_MainScrollFrame then
+    if activeStep > 0 and GLV_MainScrollFrame then
         -- Wait 1 second for UI to stabilize, then scroll to active step
         GLV.Ace:ScheduleEvent(function()
             if GLV_MainScrollFrame then
                 -- Same calculation as checkbox click: sum of all previous step heights + spacing
                 local targetScroll = 0
-                for i = 1, firstUnchecked - 1 do
+                for i = 1, activeStep - 1 do
                     local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
                     if stepFrame and stepFrame.GetHeight then
                         targetScroll = targetScroll + stepFrame:GetHeight()
                     end
                 end
                 -- Add spacing between frames (spacing * (number of steps - 1))
-                if firstUnchecked > 1 then
-                    targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (firstUnchecked - 1))
+                if activeStep > 1 then
+                    targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (activeStep - 1))
                 end
                 -- Ensure we don't scroll below 0
                 targetScroll = math.max(0, targetScroll)

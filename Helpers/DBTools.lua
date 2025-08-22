@@ -55,7 +55,6 @@ end
 function GLV:GetQuestIDByName(name)
     local Localized = getLocalizedKey()
     if not VGDB or not VGDB.quests or not VGDB.quests[Localized] then
-        DEFAULT_CHAT_FRAME:AddMessage("VGDB is nil")
         return nil
     end
     
@@ -71,16 +70,21 @@ end
 function GLV:GetQuestNameByID(id)
     local Localized = getLocalizedKey()
     if not VGDB or not VGDB.quests or not VGDB.quests[Localized] then
-        DEFAULT_CHAT_FRAME:AddMessage("VGDB is nil")
-        return nil
+        return "UNKNOWN_QUEST"
     end
 
     local numId = tonumber(id)
+    if not numId then
+        return "UNKNOWN_QUEST"
+    end
+    
+    local questData = VGDB.quests[Localized][numId]
+    if not questData or not questData.T then
+        return "UNKNOWN_QUEST"
+    end
 
-    return VGDB.quests[Localized][numId].T
+    return questData.T
 end
-
--- Removed unused functions: GetQuestStartCoords and GetQuestEndCoords
 
 function GLV:GetQuestAllCoords(id, questPart)
     if not id then 
@@ -425,8 +429,8 @@ function GLV:GetNPCCoordinates(npcID)
         end
     end
     
-    return nil
-end
+        return nil
+    end
 
 function GLV:GetItemCoordinates(itemID)
     if not itemID then return nil end

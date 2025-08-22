@@ -12,34 +12,6 @@ local GLV = LibStub("GuidelimeVanilla")
 
 local Parser = {}
 
---[[
-guide = {
-    group = "",
-    minLevel = 0,
-    maxLevel = 0,
-    name = "",
-    description = "",
-    faction = "",
-    steps = {
-        {
-            check = true|false,
-            complete_with_next = true|false,
-            xp =
-            text = "",
-            coords = {
-                x = "",
-                y = "",
-                z = ""
-            },
-            { ... }
-        },
-        {...},
-        {...},
-    }
-    next = ""
-}
-]]
-
 local codes = {
     N   = "NAME",
     NX  = "NEXT_GUIDE",
@@ -63,6 +35,7 @@ local codes = {
     R   = "REPAIR",
     V   = "VENDOR",
     H   = "HEARTHSTONE",
+    S   = "BIND_HEARTHSTONE",
 }
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
@@ -103,7 +76,7 @@ function Parser:parseGuide(guide, group)
                         tagContent = string.gsub(tagContent, "^%s*", "")
 
                         if tag == "NAME" then
-                            parsedGuide.minLevel, parsedGuide.maxLevel, parsedGuide.name = self:getGuideName(tagContent)
+                            parsedGuide.minLevel, parsedGuide.maxLevel, parsedGuide.name, parsedGuide.id = self:getGuideName(tagContent)
                             return ""
 
                         elseif tag == "DESCRIPTION" then
@@ -116,6 +89,12 @@ function Parser:parseGuide(guide, group)
 
                         elseif tag == "NEXT_GUIDE" then
                             parsedGuide.next = tagContent
+                            parsedGuide.hasCheckbox = true
+                            parsedGuide.clickToNext = true
+                            return "-"
+
+                        elseif tag == "OPTIONAL" then
+                            parsedLine.optional = true
                             return ""
 
                         elseif tag == "OPTIONAL_COMPLETE_WITH_NEXT" then
@@ -131,6 +110,9 @@ function Parser:parseGuide(guide, group)
 
                         elseif tag == "LEARN" then
                             return "|c" .. GLV.Colors[tag] .. self:Learn(tagContent) .. "|r"
+
+                        elseif tag == "COLLECT_ITEM" then
+                            return "|c" .. GLV.Colors[tag] .. self:CollectItem(tagContent) .. "|r"
 
                         elseif self:getSuperTag(tag) == "QUEST" then
                             local fullText = ""
@@ -174,6 +156,10 @@ function Parser:parseGuide(guide, group)
                             parsedLine.useItemId = 6948
                             return tagContent
 
+                        elseif tag == "BIND_HEARTHSTONE" then
+                            parsedLine.bindHearthstone = true
+                            return "|c" .. GLV.Colors[tag] .. tagContent .. "|r"
+
                         end
 
                         return "[" .. code .. "]"
@@ -209,8 +195,38 @@ function Parser:parseGuide(guide, group)
 end
 
 function Parser:getGuideName(content)
-    local lvlMin, lvlMax, guideName = string.match(content, "%s*(%d*%.?%d*)%s*%-?%s*(%d*%.?%d*)%s*(.*)")
-    return lvlMin, lvlMax, guideName
+    -- Try different patterns to extract level and name
+    local lvlMin, lvlMax, guideName
+    
+    -- Pattern 1: "1-11 Dun Morogh" or "1-11 Dun Morogh"
+    lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s*%-%s*(%d+)%s*(.+)")
+    
+    -- Pattern 2: "1 11 Dun Morogh" (without dash)
+    if not lvlMin then
+        lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s+(%d+)%s+(.+)")
+    end
+    
+    -- Pattern 3: Just try to extract any numbers and text
+    if not lvlMin then
+        lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s*[%-%s]%s*(%d+)%s*(.+)")
+    end
+    
+    -- Create a unique guide identifier
+    local guideId = "Unknown"
+    if guideName and guideName ~= "" then
+        guideId = string.gsub(guideName, "%s+", "_") -- Replace spaces with underscores
+        if lvlMin and lvlMin ~= "" then
+            guideId = guideId .. "_" .. lvlMin
+        end
+        if lvlMax and lvlMax ~= "" then
+            guideId = guideId .. "_" .. lvlMax
+        end
+    else
+        -- Fallback: use group name if guide name is empty
+        guideId = "Unknown_Guide"
+    end
+    
+    return lvlMin, lvlMax, guideName, guideId
 end
 
 function Parser:getGuideDescription(content)
@@ -285,6 +301,12 @@ function Parser:GetQuestInfo(content)
     local coords = GLV:GetQuestAllCoords(questID, questPart)
     
     return questName, questID, coords
+end
+
+function Parser:CollectItem(content)
+    local itemID, itemCount = string.match(content, "(%d+)(,?)(%d?)")
+    local itemName = GLV:GetItemNameById(itemID)
+    return itemName
 end
 
 GLV.Parser = Parser

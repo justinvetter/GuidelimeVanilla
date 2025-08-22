@@ -57,8 +57,8 @@ My rewrite of VanillaGuide to VanillaGuideReloaded :
 ]]
 
     local content = GLV_SettingsAboutPageContent
-    content:SetWidth(700)                -- Largeur max avant retour à la ligne
-    content:SetNonSpaceWrap(true)        -- Permet de couper même sans espaces
+    content:SetWidth(700)                -- Max width before line break
+    content:SetNonSpaceWrap(true)        -- Allows cutting even without spaces
     content:SetJustifyH("LEFT")          -- Alignement horizontal
     content:SetJustifyV("TOP")           -- Alignement vertical
     content:SetText(text)
