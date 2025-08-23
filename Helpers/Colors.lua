@@ -19,6 +19,7 @@ local Colors = {
     VENDOR      = "FFE57A1D",
     COLLECT_ITEM = "FFE57A1D",
     BIND_HEARTHSTONE = "FFA1A1A1",
+    EXPERIENCE  = "FFFFFF00",
 }
 
 GLV.Colors = Colors

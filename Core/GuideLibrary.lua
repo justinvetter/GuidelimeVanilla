@@ -280,6 +280,11 @@ function GLV:LoadGuide(group, guideId)
         GLV.QuestTracker:RefreshHighlighting()
     end
     
+    -- Vérifier immédiatement les exigences d'XP au chargement du guide
+    if GLV.CharacterTracker then
+        GLV.CharacterTracker:CheckCurrentStepXPRequirements()
+    end
+    
     -- Update dropdown to reflect the loaded guide
     local dropdown = _G["GLV_MainDropdown"]
     if dropdown then

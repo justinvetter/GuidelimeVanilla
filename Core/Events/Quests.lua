@@ -64,8 +64,10 @@ function QuestTracker:Init()
     if not self.questWatchFrame then
         self.questWatchFrame = CreateFrame("Frame")
         self.questWatchFrame:RegisterEvent("QUEST_LOG_UPDATE")
-        self.questWatchFrame:SetScript("OnEvent", function()
-            self:OnQuestLogUpdate()
+        self.questWatchFrame:SetScript("OnEvent", function(event)
+            if event == "QUEST_LOG_UPDATE" then
+                self:OnQuestLogUpdate()
+            end
         end)
     end
     
@@ -157,6 +159,7 @@ function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isCo
         }
     end
 end
+
 
 function QuestTracker:TrackAccepted(id, title)
     if not id or type(id) ~= "number" then
@@ -313,6 +316,11 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
     
     -- Gérer la navigation des étapes
     self:UpdateStepNavigation(stepMarked, multiActionStepFound)
+    
+    -- Vérifier les exigences d'XP après toute action de quête
+    if GLV.CharacterTracker then
+        GLV.CharacterTracker:CheckCurrentStepXPRequirements()
+    end
 end
 
 -- Fonction pour gérer la navigation entre les étapes

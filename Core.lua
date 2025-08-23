@@ -76,6 +76,7 @@ function addon:OnEnable()
     
     if GLV.QuestTracker then
         GLV.QuestTracker:Init()
+        GLV.CharacterTracker:Init()
     end
     
     if GLV.GossipHandler then
@@ -210,6 +211,17 @@ function addon:LoadDefaultGuideForRace(race)
                 break
             end
         end
+    end
+end
+
+-- Commande de test pour la vérification XP
+SLASH_GLVXP1 = "/glvxp"
+SlashCmdList["GLVXP"] = function(msg)
+    if GLV.CharacterTracker then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Forcing XP check...")
+        GLV.CharacterTracker:CheckCurrentStepXPRequirements()
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r CharacterTracker not initialized")
     end
 end
 

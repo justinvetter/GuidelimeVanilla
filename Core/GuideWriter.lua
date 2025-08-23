@@ -171,7 +171,8 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 questId = guide.steps[i].questId,
                 coords = guide.steps[i].coords,
                 stepType = guide.steps[i].stepType,
-                questTags = guide.steps[i].questTags
+                questTags = guide.steps[i].questTags,
+                experienceRequirement = guide.steps[i].experienceRequirement
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
@@ -182,12 +183,22 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     table.insert(stepFrameData.questTags, tag)
                 end
             end
+            
+            -- Vérifier si cette ligne OC a des exigences d'XP (pour la checkbox)
+            if guide.steps[i].experienceRequirement then
+                stepFrameData.hasCheckbox = true
+            end
             i=i+1
         end
         if i <= safe_tablelen(guide.steps) and guide.steps[i] then
-            table.insert(stepFrameData.lines, {text=guide.steps[i].text, isOC=false, icon=guide.steps[i].icon, useItemId=guide.steps[i].useItemId, questId=guide.steps[i].questId, coords=guide.steps[i].coords, stepType=guide.steps[i].stepType, questTags=guide.steps[i].questTags})
+            table.insert(stepFrameData.lines, {text=guide.steps[i].text, isOC=false, icon=guide.steps[i].icon, useItemId=guide.steps[i].useItemId, questId=guide.steps[i].questId, coords=guide.steps[i].coords, stepType=guide.steps[i].stepType, questTags=guide.steps[i].questTags, experienceRequirement=guide.steps[i].experienceRequirement})
 
             stepFrameData.hasCheckbox = true
+            
+            -- Vérifier si cette ligne a des exigences d'XP (pour la checkbox)
+            if guide.steps[i].experienceRequirement then
+                stepFrameData.hasCheckbox = true
+            end
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
             end
