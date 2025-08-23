@@ -25,6 +25,9 @@ local Settings = nil
 
 function addon:OnInitialize()
     DEFAULT_CHAT_FRAME:AddMessage(string.format("%s v%s", _ADDON_NAME, _VERSION))
+
+    -- Set debug mode for testing
+    GLV.Debug = false
     
     -- Set GLV.Ace first so other modules can access it
     GLV.Ace = self
@@ -82,16 +85,15 @@ function addon:OnEnable()
     if GLV.GossipHandler then
         GLV.GossipHandler:Init()
     end
-
-    -- Set debug mode for testing
-    GLV.Debug = true
     
     -- Initialize TomTom integration AFTER the guide is loaded
     if GLV.TomTomIntegration then
         -- Wait a bit for TomTom to load, then initialize
         self:ScheduleEvent(function()
             if GLV.TomTomIntegration then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Initializing TomTom integration...")
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Initializing TomTom integration...")
+                end
                 GLV.TomTomIntegration:Init()
                 
                 -- Force update the waypoint for the current step after a delay
@@ -100,7 +102,9 @@ function addon:OnEnable()
                         local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
                         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
                         
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Force-updating TomTom waypoint for step " .. currentStep)
+                        if GLV.Debug then
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Force-updating TomTom waypoint for step " .. currentStep)
+                        end
                         
                         if currentStep > 0 and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
                             local stepData = GLV.CurrentDisplaySteps[currentStep]
@@ -218,10 +222,14 @@ end
 SLASH_GLVXP1 = "/glvxp"
 SlashCmdList["GLVXP"] = function(msg)
     if GLV.CharacterTracker then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Forcing XP check...")
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Forcing XP check...")
+        end
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
     else
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r CharacterTracker not initialized")
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r CharacterTracker not initialized")
+        end
     end
 end
 

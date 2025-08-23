@@ -59,7 +59,7 @@ function Parser:ParseExperienceRequirement(xpString)
     
     -- Extraire seulement la partie numérique au début de la chaîne
     -- [XP3] ou [XP4-290 Grind text] ou [XP3.5 Some text]
-    local numericPart = string.match(xpString, "^([%d%.%-]+)")
+    local numericPart, textPart = string.match(xpString, "^([%d%.%-]+)(.*)")
     if not numericPart then
         if GLV.Debug then
             DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime Parser]|r No numeric part found in: '" .. xpString .. "'")
@@ -80,7 +80,8 @@ function Parser:ParseExperienceRequirement(xpString)
         return {
             targetLevel = tonumber(simpleLevel),
             targetPercent = 100,
-            type = "level"
+            type = "level",
+            text = textPart
         }
     end
     
@@ -93,7 +94,8 @@ function Parser:ParseExperienceRequirement(xpString)
         return {
             targetLevel = tonumber(levelMinus),
             xpMinus = tonumber(xpMinus),
-            type = "level_minus"
+            type = "level_minus",
+            text = textPart
         }
     end
     
@@ -120,7 +122,8 @@ function Parser:ParseExperienceRequirement(xpString)
         return {
             targetLevel = level,
             targetPercent = percent,
-            type = "level_percent"
+            type = "level_percent",
+            text = textPart
         }
     end
     
@@ -272,12 +275,12 @@ function Parser:parseGuide(guide, group)
                                     else
                                         debugMsg = debugMsg .. " (100%)"
                                     end
-                                    DEFAULT_CHAT_FRAME:AddMessage(debugMsg)
+                                    if GLV.Debug then
+                                        DEFAULT_CHAT_FRAME:AddMessage(debugMsg)
+                                    end
                                 end
                                 
-                                return "|c" .. GLV.Colors[tag] .. "Reach " .. tagContent .. " XP" .. "|r"
-                            else
-                                return "|c" .. GLV.Colors[tag] .. tagContent .. "|r"
+                                return "|c" .. GLV.Colors[tag] .. xpData.text .. "|r"
                             end
 
                         end

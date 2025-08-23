@@ -44,9 +44,6 @@ end
 function QuestTracker:Init()
     -- Initialize or repair store
     local store = GLV.Settings:GetOption({"QuestTracker"}) or {}
-    if not store.accepted then store.accepted = {} end
-    if not store.completed then store.completed = {} end
-    GLV.Settings:SetOption(store, {"QuestTracker"})
     self.store = store
 
     -- Hook les fonctions originales
@@ -64,10 +61,8 @@ function QuestTracker:Init()
     if not self.questWatchFrame then
         self.questWatchFrame = CreateFrame("Frame")
         self.questWatchFrame:RegisterEvent("QUEST_LOG_UPDATE")
-        self.questWatchFrame:SetScript("OnEvent", function(event)
-            if event == "QUEST_LOG_UPDATE" then
-                self:OnQuestLogUpdate()
-            end
+        self.questWatchFrame:SetScript("OnEvent", function()
+            self:OnQuestLogUpdate()
         end)
     end
     
@@ -82,7 +77,7 @@ function QuestTracker:OnQuestLogUpdate()
     end
     
     -- Vérifier si la surveillance automatique des objectifs est activée
-    local autoObjectiveTracking = GLV.Settings:GetOption({"QuestTracker", "AutoObjectiveTracking"})
+    local autoObjectiveTracking = GLV.Settings:GetOption({"QuestTracker", "AutoObjectiveTracking"}) or true
     if autoObjectiveTracking == false then
         return -- Fonctionnalité désactivée
     end
@@ -167,10 +162,10 @@ function QuestTracker:TrackAccepted(id, title)
     end
 
     local store = self.store or GLV.Settings:GetOption({"QuestTracker"}) or {}
-    if not store.accepted then store.accepted = {} end
+    if not store.Accepted then store.Accepted = {} end
 
-    if id and not store.accepted[id] then
-        store.accepted[id] = {
+    if id and not store.Accepted[id] then
+        store.Accepted[id] = {
             title = title,
             timestamp = time()
         }
@@ -201,9 +196,9 @@ function QuestRewardCompleteButton()
     end
     
     -- Optionally mark completed store and refresh UI/advance
-    local store = GLV.QuestTracker and GLV.QuestTracker.store or GLV.Settings:GetOption({"QuestTracker"}) or {}
-    if store and store.completed and numId then
-        store.completed[numId] = { title = title, timestamp = time() }
+    local store = GLV.QuestTracker and GLV.QuestTracker.store or GLV.Settings:GetOption({"QuestTracker"}) or GLV.Settings:GetDefaults().char.QuestTracker
+    if store and store.Completed and numId then
+        store.Completed[numId] = { title = title, timestamp = time() }
         GLV.Settings:SetOption(store, {"QuestTracker"})
     end
     
@@ -442,8 +437,8 @@ function QuestAbandon()
         local numId = tonumber(id)
         if numId and GLV.QuestTracker then
             local store = GLV.QuestTracker.store or GLV.Settings:GetOption({"QuestTracker"}) or {}
-            if store.accepted and store.accepted[numId] then
-                store.accepted[numId] = nil
+            if store.Accepted and store.Accepted[numId] then
+                store.Accepted[numId] = nil
                 GLV.Settings:SetOption(store, {"QuestTracker"})
             end
         end

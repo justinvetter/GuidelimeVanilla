@@ -36,9 +36,6 @@ function CharacterTracker:Init()
             self.xpCheckTimer:SetScript("OnUpdate", function()
                 self.xpCheckTimer.TimeSinceLastUpdate = self.xpCheckTimer.TimeSinceLastUpdate + 0.1
                 if self.xpCheckTimer.TimeSinceLastUpdate >= 2 then
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Timer check triggered")
-                    end
                     self:CheckForXPChanges()
                     self.xpCheckTimer.TimeSinceLastUpdate = 0
                 end

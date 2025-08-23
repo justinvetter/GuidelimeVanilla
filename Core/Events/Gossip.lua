@@ -29,13 +29,17 @@ function GossipHandler:AutoUseHearthstone()
                         local link = GetContainerItemLink(bag, slot)
                         if link and string.find(link, "item:6948:") then -- Hearthstone item ID
                             UseContainerItem(bag, slot)
-                            DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: Hearthstone used automatically!")
+                            if GLV.Debug then
+                                DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: Hearthstone used automatically!")
+                            end
                             return
                         end
                     end
                 end
             end
-            DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: Hearthstone not found in your bags!")
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: Hearthstone not found in your bags!")
+            end
         end
     end
 end

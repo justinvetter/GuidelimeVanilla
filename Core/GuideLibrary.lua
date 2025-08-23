@@ -261,7 +261,9 @@ function GLV:LoadGuide(group, guideId)
                 end)
                 if not success then
                     -- Log error but don't crash
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r TomTom error: " .. tostring(err))
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r TomTom error: " .. tostring(err))
+                    end
                 end
             elseif GLV.Debug then
                 if not stepData then

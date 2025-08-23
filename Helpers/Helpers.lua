@@ -62,15 +62,23 @@ function DumpTable(tbl, indent)
     for key, value in pairs(tbl) do
         local line = indentStr .. tostring(key) .. " = "
         if type(value) == "table" then
-            DEFAULT_CHAT_FRAME:AddMessage(line .. "{")
+            if GLV and GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage(line .. "{")
+            end
             DumpTable(value, indent + 1)
-            DEFAULT_CHAT_FRAME:AddMessage(indentStr .. "}")
+            if GLV and GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage(indentStr .. "}")
+            end
         elseif type(value) == "string" then
             local preview = string.sub(value, 1, 100)
             preview = string.gsub(preview, "\n", "\\n")
-            DEFAULT_CHAT_FRAME:AddMessage(line .. '"' .. preview .. '"...')
+            if GLV and GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage(line .. '"' .. preview .. '"...')
+            end
         else
-            DEFAULT_CHAT_FRAME:AddMessage(line .. tostring(value))
+            if GLV and GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage(line .. tostring(value))
+            end
         end
     end
 end
