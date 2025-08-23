@@ -37,6 +37,7 @@ local defaults = {
         QuestTracker = {
             Accepted = {},
             Completed = {},
+            AutoObjectiveTracking = true, -- Surveiller automatiquement les objectifs de quête
         }
     }
 }

@@ -59,6 +59,103 @@ function QuestTracker:Init()
     -- Hook quest abandon
     originalAbandonQuest = AbandonQuest
     AbandonQuest = QuestAbandon
+    
+    -- Créer un frame pour surveiller les événements de quête
+    if not self.questWatchFrame then
+        self.questWatchFrame = CreateFrame("Frame")
+        self.questWatchFrame:RegisterEvent("QUEST_LOG_UPDATE")
+        self.questWatchFrame:SetScript("OnEvent", function()
+            self:OnQuestLogUpdate()
+        end)
+    end
+    
+    -- Stocker l'état précédent des quêtes pour détecter les changements
+    self.previousQuestStates = {}
+end
+
+-- Fonction appelée quand le journal de quête est mis à jour
+function QuestTracker:OnQuestLogUpdate()
+    if not GLV.CurrentDisplaySteps then
+        return
+    end
+    
+    -- Vérifier si la surveillance automatique des objectifs est activée
+    local autoObjectiveTracking = GLV.Settings:GetOption({"QuestTracker", "AutoObjectiveTracking"})
+    if autoObjectiveTracking == false then
+        return -- Fonctionnalité désactivée
+    end
+    
+    -- Parcourir toutes les quêtes dans le journal
+    local numEntries, numQuests = GetNumQuestLogEntries()
+    
+    for questIndex = 1, numEntries do
+        local questLogTitleText, level, questTag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(questIndex)
+        
+        if questLogTitleText and not isHeader then
+            local questId = GLV:GetQuestIDByName(questLogTitleText)
+            local numId = tonumber(questId)
+            
+            if numId then
+                -- Vérifier si cette quête a des objectifs qui viennent d'être complétés
+                self:CheckQuestObjectives(questIndex, numId, questLogTitleText, isComplete)
+            end
+        end
+    end
+end
+
+-- Vérifier les objectifs d'une quête spécifique
+function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isComplete)
+    -- Sélectionner la quête pour pouvoir lire ses détails
+    SelectQuestLogEntry(questIndex)
+    
+    local questDescription, questObjectives = GetQuestLogQuestText()
+    
+    -- Analyser les objectifs individuels
+    local currentObjectivesState = {}
+    local numObjectives = GetNumQuestLeaderBoards()
+    
+    for i = 1, numObjectives do
+        local description, objectiveType, isCompleted = GetQuestLogLeaderBoard(i)
+        if description then
+            currentObjectivesState[i] = {
+                description = description,
+                isCompleted = isCompleted
+            }
+            
+            if GLV.Debug and isCompleted then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime Objectives]|r Objective completed: " .. description)
+            end
+        end
+    end
+    
+    -- Si la quête est complètement terminée (tous objectifs remplis)
+    if isComplete and isComplete == 1 then
+        -- Vérifier si on n'a pas déjà traité cette complétion
+        local currentState = self.previousQuestStates[questId]
+        if not currentState or not currentState.wasComplete then
+            -- La quête vient d'être complétée !
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime Objectives]|r Quest completed: " .. questTitle .. " (ID: " .. questId .. ")")
+            end
+            
+            -- Marquer automatiquement les étapes [QC] correspondantes
+            self:HandleQuestAction(questId, questTitle, "COMPLETE")
+            
+            -- Mettre à jour l'état stocké
+            self.previousQuestStates[questId] = {
+                wasComplete = true,
+                lastObjectives = questObjectives,
+                objectivesState = currentObjectivesState
+            }
+        end
+    else
+        -- La quête n'est pas encore complète, mettre à jour l'état
+        self.previousQuestStates[questId] = {
+            wasComplete = false,
+            lastObjectives = questObjectives,
+            objectivesState = currentObjectivesState
+        }
+    end
 end
 
 function QuestTracker:TrackAccepted(id, title)

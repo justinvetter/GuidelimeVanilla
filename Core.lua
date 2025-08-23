@@ -212,3 +212,5 @@ function addon:LoadDefaultGuideForRace(race)
         end
     end
 end
+
+GLV.Addon = addon
