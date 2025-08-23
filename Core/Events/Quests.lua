@@ -76,128 +76,8 @@ function QuestTracker:TrackAccepted(id, title)
         }
         GLV.Settings:SetOption(store, {"QuestTracker"})
         
-        -- Mark the corresponding guide step as done using questId
-        local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
-        local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
-        local firstUnchecked = 0
-        local stepMarked = false
-        
-        if GLV.CurrentGuide and GLV.CurrentGuide.steps then
-            -- Flag to track if we found and marked any steps
-            local stepMarked = false
-            
-            -- Find and mark the step as done
-            for origIdx, step in ipairs(GLV.CurrentGuide.steps) do
-                -- Check if this step contains the quest tag we're looking for
-                local shouldMarkStep = false
-                
-                if step.questTags then
-                    -- Check each quest tag in this step
-                    for _, questTag in ipairs(step.questTags) do
-                        if questTag.tag == "ACCEPT" and questTag.questId == id then
-                            shouldMarkStep = true
-                            break
-                        end
-                    end
-                elseif step.questId and tonumber(step.questId) == tonumber(id) and step.stepType == "ACCEPT" then
-                    -- Legacy compatibility - match the direct quest ID
-                    shouldMarkStep = true
-                end
-                
-                if shouldMarkStep then
-                    stepState[origIdx] = true
-                    stepMarked = true
-                    
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Marked quest accept step as completed: " .. title)
-                    end
-                    break
-                end
-            end
-            
-            -- Save stepState
-            if stepMarked then
-                GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-            end
-            
-            -- Find the NEXT unchecked step (not the current one)
-            local diCount = GLV.CurrentDisplayStepsCount or 0
-            local hasCb = GLV.CurrentDisplayHasCheckbox or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
-            -- First, find which display index corresponds to the step we just completed
-            local completedDisplayIndex = 0
-            for di = 1, diCount do
-                if hasCb[di] and diToOrig[di] then
-                    local origIdx = diToOrig[di]
-                    if origIdx and stepState[origIdx] then
-                        local step = GLV.CurrentGuide.steps[origIdx]
-                        if step and step.questTags then
-                            for _, questTag in ipairs(step.questTags) do
-                                if questTag.tag == "ACCEPT" and questTag.questId == id then
-                                    completedDisplayIndex = di
-                                    break
-                                end
-                            end
-                        elseif step and step.questId and tonumber(step.questId) == tonumber(id) then
-                            completedDisplayIndex = di
-                            break
-                        end
-                    end
-                    if completedDisplayIndex > 0 then break end
-                end
-            end
-            
-            -- Now find the NEXT unchecked step after the completed one
-            for di = completedDisplayIndex + 1, diCount do
-                if hasCb[di] then
-                    local nextOriginal = diToOrig[di]
-                    if nextOriginal and not stepState[nextOriginal] then
-                        firstUnchecked = di
-                        break
-                    end
-                end
-            end
-            
-            -- If no next step found, look from the beginning
-            if firstUnchecked == 0 then
-                for di = 1, diCount do
-                    if hasCb[di] then
-                        local nextOriginal = diToOrig[di]
-                        if nextOriginal and not stepState[nextOriginal] then
-                            firstUnchecked = di
-                            break
-                        end
-                    end
-                end
-            end
-            
-            GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-            
-            -- Update visual highlighting immediately
-            if firstUnchecked > 0 then
-                local scrollChild = GLV_MainScrollFrameScrollChild
-                if scrollChild then
-                    -- Force checkbox update for the completed step
-                    if completedDisplayIndex > 0 then
-                        local frameName = scrollChild:GetName().."Step"..completedDisplayIndex
-                        local check = getglobal(frameName.."Check")
-                        if check and check.SetChecked then
-                            check:SetChecked(true)
-                        end
-                    end
-                    
-                    -- Apply highlighting to the NEXT step
-                    applyHighlighting(scrollChild, firstUnchecked)
-                    
-                    -- Update TomTom waypoint for the new active step
-                    if GLV.TomTomIntegration and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
-                        local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
-                        GLV.TomTomIntegration:OnStepChanged(stepData)
-                    end
-                end
-            end
-        end
+        -- Use the centralized function to handle quest actions
+        self:HandleQuestAction(id, title, "ACCEPT")
     end
 end
 
@@ -216,6 +96,10 @@ function QuestRewardCompleteButton()
     local id = GLV:GetQuestIDByName(title)
     local numId = tonumber(id)
     
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[GuideLime TURNIN]|r Processing quest turnin: " .. (title or "unknown") .. " (ID: " .. (numId or "nil") .. ")")
+    end
+    
     -- Optionally mark completed store and refresh UI/advance
     local store = GLV.QuestTracker and GLV.QuestTracker.store or GLV.Settings:GetOption({"QuestTracker"}) or {}
     if store and store.completed and numId then
@@ -223,85 +107,197 @@ function QuestRewardCompleteButton()
         GLV.Settings:SetOption(store, {"QuestTracker"})
     end
     
-    -- Mark the corresponding guide step as done using questId
-    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
-    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
-    
-    -- Flag to check if we found and marked any steps
-    local stepMarked = false
-    
-    if GLV.CurrentGuide and GLV.CurrentGuide.steps and numId then
-        -- Find and mark the step as done based on questId
-        for origIdx, step in ipairs(GLV.CurrentGuide.steps) do
-            if step.questId and tonumber(step.questId) == numId and step.stepType == "TURNIN" then
-                stepState[origIdx] = true
-                stepMarked = true
-                
-                if GLV.Debug then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Marked quest turnin step as completed: " .. title)
-                end
-            end
-        end
-        
-        -- Save stepState
-        if stepMarked then
-            GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-            
-            -- Find the NEXT unchecked step
-            local diCount = GLV.CurrentDisplayStepsCount or 0
-            local hasCb = GLV.CurrentDisplayHasCheckbox or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
-            -- Find the NEXT unchecked step
-            local firstUnchecked = 0
-            for di = 1, diCount do
-                if hasCb[di] then
-                    local nextOriginal = diToOrig[di]
-                    if nextOriginal and not stepState[nextOriginal] then
-                        firstUnchecked = di
-                        break
-                    end
-                end
-            end
-            
-            if firstUnchecked > 0 then
-                GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-                
-                -- Update visual highlighting immediately
-                local scrollChild = GLV_MainScrollFrameScrollChild
-                if scrollChild then
-                    -- Apply highlighting to the NEXT step
-                    applyHighlighting(scrollChild, firstUnchecked)
-                    
-                    -- Update TomTom waypoint for the new active step
-                    if GLV.TomTomIntegration and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
-                        local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
-                        GLV.TomTomIntegration:OnStepChanged(stepData)
-                    end
-                end
-            end
-        else
-            -- Fall back to original behavior if no specific step was found
-            local firstUnchecked = 0
-            if GLV.CurrentGuide and GLV.CurrentGuide.steps then
-                local totalSteps = table.getn(GLV.CurrentGuide.steps)
-                for i2 = 1, totalSteps do
-                    local st = GLV.CurrentGuide.steps[i2]
-                    if st and st.hasCheckbox and not stepState[i2] then
-                        firstUnchecked = i2
-                        break
-                    end
-                end
-                GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-            end
-        end
-    end
-    
-    if not stepMarked and GLV.RefreshGuide then 
-        GLV:RefreshGuide() 
+    -- Call the same function used for ACCEPT to handle multi-action steps
+    if numId then
+        GLV.QuestTracker:HandleQuestAction(numId, title, "TURNIN")
     end
     
     originalQuestRewardCompleteButton_OnClick();
+end
+
+-- Nouvelle fonction centralisée pour gérer les actions de quête
+function QuestTracker:HandleQuestAction(questId, title, actionType)
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[GuideLime " .. actionType .. "]|r Handling quest action: " .. actionType .. " for quest " .. questId)
+    end
+    
+    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
+    local stepQuestState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepQuestState"}) or {}
+    
+    local stepMarked = false
+    local multiActionStepFound = false
+    
+    if not GLV.CurrentDisplaySteps then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r No CurrentDisplaySteps available")
+        end
+        return
+    end
+    
+    local diCount = GLV.CurrentDisplayStepsCount or 0
+    local diToOrig = GLV.CurrentDisplayToOriginal or {}
+    
+    -- Parcourir toutes les étapes d'affichage
+    for di = 1, diCount do
+        local step = GLV.CurrentDisplaySteps[di]
+        local origIdx = diToOrig[di]
+        
+        if step and origIdx then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Checking display step " .. di .. " (orig " .. origIdx .. ")")
+                if step.questTags then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r  Step has " .. table.getn(step.questTags) .. " questTags")
+                else
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r  Step has no questTags")
+                end
+            end
+            
+            -- Vérifier si cette étape contient des questTags
+            if step.questTags and table.getn(step.questTags) > 0 then
+                -- Initialiser le suivi de cette étape si nécessaire
+                if not stepQuestState[origIdx] then
+                    stepQuestState[origIdx] = {}
+                end
+                
+                local hasMatchingAction = false
+                local allActionsDone = true
+                
+                -- Vérifier chaque questTag dans l'étape
+                for _, questTag in ipairs(step.questTags) do
+                    local actionKey = questTag.questId .. "_" .. questTag.tag
+                    
+                    if questTag.tag == actionType and questTag.questId == questId then
+                        -- On vient de compléter cette action
+                        stepQuestState[origIdx][actionKey] = true
+                        hasMatchingAction = true
+                        multiActionStepFound = true
+                        
+                        if GLV.Debug then
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Marked action completed: " .. actionKey)
+                        end
+                    end
+                    
+                    -- Vérifier si cette action est complétée
+                    if not stepQuestState[origIdx][actionKey] then
+                        allActionsDone = false
+                    end
+                end
+                
+                -- Si on a trouvé une action correspondante dans cette étape
+                if hasMatchingAction then
+                    -- Sauvegarder l'état des actions
+                    GLV.Settings:SetOption(stepQuestState, {"Guide","Guides", currentGuideId, "StepQuestState"})
+                    
+                    -- Si toutes les actions de l'étape sont complétées
+                    if allActionsDone then
+                        stepState[origIdx] = true
+                        stepMarked = true
+                        
+                        if GLV.Debug then
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r All actions completed for step " .. origIdx .. ", marking as done")
+                        end
+                    else
+                        if GLV.Debug then
+                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Step " .. origIdx .. " has remaining actions, not marking as done yet")
+                        end
+                    end
+                    
+                    break -- On a trouvé l'étape correspondante, on peut sortir
+                end
+            end
+        end
+    end
+    
+    -- Sauvegarder l'état des étapes
+    if stepMarked then
+        GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+    end
+    
+    -- Gérer la navigation des étapes
+    self:UpdateStepNavigation(stepMarked, multiActionStepFound)
+end
+
+-- Fonction pour gérer la navigation entre les étapes
+function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
+    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
+    local stepQuestState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepQuestState"}) or {}
+    
+    local diCount = GLV.CurrentDisplayStepsCount or 0
+    local hasCb = GLV.CurrentDisplayHasCheckbox or {}
+    local diToOrig = GLV.CurrentDisplayToOriginal or {}
+    
+    local firstUnchecked = 0
+    
+    -- Trouver la prochaine étape non cochée
+    for di = 1, diCount do
+        if hasCb[di] then
+            local origIdx = diToOrig[di]
+            if origIdx then
+                -- Vérifier si cette étape est complètement terminée
+                local stepCompleted = stepState[origIdx]
+                
+                -- Pour les étapes multi-actions, vérifier si toutes les actions sont faites
+                if not stepCompleted then
+                    local step = GLV.CurrentDisplaySteps[di]
+                    if step and step.questTags and table.getn(step.questTags) > 1 and stepQuestState[origIdx] then
+                        local allDone = true
+                        for _, questTag in ipairs(step.questTags) do
+                            local actionKey = questTag.questId .. "_" .. questTag.tag
+                            if not stepQuestState[origIdx][actionKey] then
+                                allDone = false
+                                break
+                            end
+                        end
+                        if allDone then
+                            stepCompleted = true
+                        end
+                    end
+                end
+                
+                if not stepCompleted then
+                    firstUnchecked = di
+                    break
+                end
+            end
+        end
+    end
+    
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Setting current step to: " .. firstUnchecked)
+    end
+    
+    GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+    
+    -- Mettre à jour l'interface
+    if firstUnchecked > 0 then
+        local scrollChild = GLV_MainScrollFrameScrollChild
+        if scrollChild then
+            -- Mettre à jour les checkboxes
+            for di = 1, diCount do
+                if hasCb[di] then
+                    local origIdx = diToOrig[di]
+                    if origIdx and stepState[origIdx] then
+                        local frameName = scrollChild:GetName().."Step"..di
+                        local check = getglobal(frameName.."Check")
+                        if check and check.SetChecked then
+                            check:SetChecked(true)
+                        end
+                    end
+                end
+            end
+            
+            -- Appliquer la surbrillance
+            applyHighlighting(scrollChild, firstUnchecked)
+            
+            -- Mettre à jour TomTom
+            if GLV.TomTomIntegration and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
+                local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
+                GLV.TomTomIntegration:OnStepChanged(stepData)
+            end
+        end
+    end
 end
 
 function QuestAbandon()

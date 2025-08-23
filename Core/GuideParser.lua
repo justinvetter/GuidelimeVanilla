@@ -145,6 +145,11 @@ function Parser:parseGuide(guide, group)
                                 title = questTitle
                             })
                             
+                            -- Debug : afficher les questTags créées
+                            if GLV.Debug then
+                                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Added questTag: " .. tag .. " for quest " .. questId .. " (" .. questTitle .. ")")
+                            end
+                            
                             -- Add coordinates to the parsed line
                             if questCoords and table.getn(questCoords) > 0 then
                                 parsedLine.coords = questCoords

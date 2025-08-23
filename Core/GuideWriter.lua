@@ -160,7 +160,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     -- regroup steps: OC + main line
     local i=1
     while i <= safe_tablelen(guide.steps) do
-        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false}
+        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false, questTags={}}
         -- collect [OC] lines
         while i <= safe_tablelen(guide.steps) and guide.steps[i] and (guide.steps[i].emptyLine or guide.steps[i].complete_with_next) do
             table.insert(stepFrameData.lines, {
@@ -170,19 +170,37 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 useItemId = guide.steps[i].useItemId,
                 questId = guide.steps[i].questId,
                 coords = guide.steps[i].coords,
-                stepType = guide.steps[i].stepType
+                stepType = guide.steps[i].stepType,
+                questTags = guide.steps[i].questTags
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
             end
+            -- Collecter les questTags de cette ligne OC
+            if guide.steps[i].questTags then
+                for _, tag in ipairs(guide.steps[i].questTags) do
+                    table.insert(stepFrameData.questTags, tag)
+                end
+            end
             i=i+1
         end
         if i <= safe_tablelen(guide.steps) and guide.steps[i] then
-            table.insert(stepFrameData.lines, {text=guide.steps[i].text, isOC=false, icon=guide.steps[i].icon, useItemId=guide.steps[i].useItemId, questId=guide.steps[i].questId, coords=guide.steps[i].coords, stepType=guide.steps[i].stepType})
+            table.insert(stepFrameData.lines, {text=guide.steps[i].text, isOC=false, icon=guide.steps[i].icon, useItemId=guide.steps[i].useItemId, questId=guide.steps[i].questId, coords=guide.steps[i].coords, stepType=guide.steps[i].stepType, questTags=guide.steps[i].questTags})
 
             stepFrameData.hasCheckbox = true
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
+            end
+            -- Collecter les questTags de la ligne principale
+            if guide.steps[i].questTags then
+                for _, tag in ipairs(guide.steps[i].questTags) do
+                    table.insert(stepFrameData.questTags, tag)
+                end
+                
+                -- Debug : afficher les questTags ajoutées à l'étape d'affichage
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Writer]|r Step " .. i .. " has " .. table.getn(guide.steps[i].questTags) .. " questTags, total in display step: " .. table.getn(stepFrameData.questTags))
+                end
             end
             -- map original index (main line) to display index pre-insertion
             local displayIndex = safe_tablelen(displaySteps) + 1
