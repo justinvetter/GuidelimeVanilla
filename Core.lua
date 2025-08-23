@@ -27,7 +27,7 @@ function addon:OnInitialize()
     DEFAULT_CHAT_FRAME:AddMessage(string.format("%s v%s", _ADDON_NAME, _VERSION))
 
     -- Set debug mode for testing
-    GLV.Debug = false
+    GLV.Debug = true
     
     -- Set GLV.Ace first so other modules can access it
     GLV.Ace = self
