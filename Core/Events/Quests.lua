@@ -388,6 +388,36 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
             -- Appliquer la surbrillance
             applyHighlighting(scrollChild, firstUnchecked)
             
+            -- Scroll automatique vers la nouvelle étape active
+            if firstUnchecked > 0 and GLV_MainScrollFrame then
+                -- Calculer la position exacte : somme des hauteurs des étapes précédentes + spacing
+                local targetScroll = 0
+                for i = 1, firstUnchecked - 1 do
+                    local stepFrameName = scrollChild:GetName().."Step"..i
+                    local stepFrame = getglobal(stepFrameName)
+                    if stepFrame and stepFrame.GetHeight then
+                        targetScroll = targetScroll + stepFrame:GetHeight()
+                    end
+                end
+                -- Ajouter l'espacement entre les frames (spacing * (nombre d'étapes - 1))
+                if firstUnchecked > 1 then
+                    local spacing = -4 -- CONFIG.spacing from GuideWriter
+                    targetScroll = targetScroll + (math.abs(spacing) * (firstUnchecked - 1))
+                end
+                -- S'assurer qu'on ne scroll pas en dessous de 0
+                targetScroll = math.max(0, targetScroll)
+                -- Ajuster le scroll pour ne pas dépasser la limite
+                local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
+                if maxScroll and maxScroll > 0 then
+                    targetScroll = math.min(targetScroll, maxScroll)
+                end
+                GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
+                
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Auto-scrolled to step " .. firstUnchecked .. " (scroll position: " .. targetScroll .. ")")
+                end
+            end
+            
             -- Mettre à jour TomTom
             if GLV.TomTomIntegration and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
                 local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
