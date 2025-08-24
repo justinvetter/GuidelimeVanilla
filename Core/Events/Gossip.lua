@@ -10,24 +10,47 @@ Gossip Event Handler. Handle gossip events like innkeeper conversations.
 
 local GLV = LibStub("GuidelimeVanilla")
 
-local GossipHandler = CreateFrame("Frame")
+local GossipTracker = {}
+GLV.GossipTracker = GossipTracker
 
--- Function to automatically use hearthstone when talking to innkeeper
-function GossipHandler:AutoUseHearthstone()
-    -- Check if current step has bindHearthstone = true
+-- Initialize gossip tracking and register event handlers
+function GossipTracker:Init()
+    if GLV.Ace then
+        GLV.Ace:RegisterEvent("GOSSIP_SHOW", function() self:OnGossipShow() end)
+    end
+end
+
+
+--[[ EVENTS ]]--
+
+-- Handle gossip show events and check for innkeeper interactions
+function GossipTracker:OnGossipShow()
+    local gossipOptions = {GetGossipOptions()}
+    for i = 1, table.getn(gossipOptions), 2 do
+        if gossipOptions[i] and string.find(gossipOptions[i], "Make this inn your home") then
+            self:AutoUseHearthstone()
+            break
+        end
+    end
+end
+
+
+--[[ OBJECTS FUNCTIONS ]]--
+
+-- Automatically use hearthstone if current step requires binding
+function GossipTracker:AutoUseHearthstone()
     local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
     local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     
     if currentStep > 0 and GLV.CurrentGuide and GLV.CurrentGuide.steps then
         local stepData = GLV.CurrentGuide.steps[currentStep]
         if stepData and stepData.bindHearthstone then
-            -- Use hearthstone automatically
             for bag = 0, 4 do
                 local numSlots = GetContainerNumSlots(bag)
                 if numSlots then
                     for slot = 1, numSlots do
                         local link = GetContainerItemLink(bag, slot)
-                        if link and string.find(link, "item:6948:") then -- Hearthstone item ID
+                        if link and string.find(link, "item:6948:") then
                             UseContainerItem(bag, slot)
                             if GLV.Debug then
                                 DEFAULT_CHAT_FRAME:AddMessage("GuidelimeVanilla: Hearthstone used automatically!")
@@ -43,23 +66,3 @@ function GossipHandler:AutoUseHearthstone()
         end
     end
 end
-
-function GossipHandler:Init()
-    -- Hook GOSSIP_SHOW event for innkeeper detection
-    self:RegisterEvent("GOSSIP_SHOW")
-end
-
--- Event handler for GOSSIP_SHOW
-function GossipHandler:GOSSIP_SHOW()
-    -- Check if this is an innkeeper (they have the "Make this inn your home" option)
-    local gossipOptions = {GetGossipOptions()}
-    for i = 1, table.getn(gossipOptions), 2 do
-        if gossipOptions[i] and string.find(gossipOptions[i], "Make this inn your home") then
-            -- This is an innkeeper, check if we should auto-use hearthstone
-            self:AutoUseHearthstone()
-            break
-        end
-    end
-end
-
-GLV.GossipHandler = GossipHandler

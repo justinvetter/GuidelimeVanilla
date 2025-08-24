@@ -12,6 +12,7 @@ When we click on a menu "button", it will hide all the Frames except
 the one linked to this "button".
 ]]--
 
+-- Toggle settings frame visibility
 function GLV_ToggleSettings()
     if GLV_Settings:IsVisible() then
             GLV_Settings:Hide()
@@ -20,6 +21,7 @@ function GLV_ToggleSettings()
     end
 end
 
+-- Show specific guide page and hide all others
 function GLV_ShowGuide(frame)
     local frames = {
         GLV_SettingsGuidesPage,
@@ -27,15 +29,18 @@ function GLV_ShowGuide(frame)
         GLV_SettingsAboutPage,
     }
 
+    -- Hide all other frames first
     for _, f in pairs(frames) do
         if f:IsVisible() then
             f:Hide()
         end
     end
 
+    -- Show the requested frame
     frame:Show()
 end
 
+-- Initialize the about page with description text
 function GLV_SettingsAboutPage_OnLoad()
     local text = [[
 Guidelime Vanilla is a total overhaul of the official Guidelime, which is not compatible with WoW 1.12.
@@ -59,7 +64,7 @@ My rewrite of VanillaGuide to VanillaGuideReloaded :
     local content = GLV_SettingsAboutPageContent
     content:SetWidth(700)                -- Max width before line break
     content:SetNonSpaceWrap(true)        -- Allows cutting even without spaces
-    content:SetJustifyH("LEFT")          -- Alignement horizontal
-    content:SetJustifyV("TOP")           -- Alignement vertical
+    content:SetJustifyH("LEFT")          -- Horizontal alignment
+    content:SetJustifyV("TOP")           -- Vertical alignment
     content:SetText(text)
 end

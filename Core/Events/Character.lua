@@ -13,93 +13,68 @@ local GLV = LibStub("GuidelimeVanilla")
 local CharacterTracker = {}
 GLV.CharacterTracker = CharacterTracker
 
+-- Initialize character tracking and register event handlers
 function CharacterTracker:Init()
-    
-    -- Créer un frame pour surveiller les événements de personnage
-    if not self.characterWatchFrame then
-        self.characterWatchFrame = CreateFrame("Frame")
-        self.characterWatchFrame:RegisterEvent("PLAYER_XP_UPDATE")
-        self.characterWatchFrame:RegisterEvent("PLAYER_LEVEL_UP")
-        self.characterWatchFrame:RegisterEvent("LEARNED_SPELL_IN_TAB")
-        self.characterWatchFrame:SetScript("OnEvent", function(event)
-            if event == "PLAYER_XP_UPDATE" or event == "PLAYER_LEVEL_UP" then
-                self:OnPlayerXPUpdate()
-            elseif event == "LEARNED_SPELL_IN_TAB" then
-                self:OnSpellLearned()
-            end
-        end)
-        
-        -- Créer un timer de vérification périodique séparé
-        if not self.xpCheckTimer then
-            self.xpCheckTimer = CreateFrame("Frame")
-            self.xpCheckTimer.TimeSinceLastUpdate = 0
-            self.xpCheckTimer:SetScript("OnUpdate", function()
-                self.xpCheckTimer.TimeSinceLastUpdate = self.xpCheckTimer.TimeSinceLastUpdate + 0.1
-                if self.xpCheckTimer.TimeSinceLastUpdate >= 2 then
-                    self:CheckForXPChanges()
-                    self.xpCheckTimer.TimeSinceLastUpdate = 0
-                end
-            end)
-        end
+    if GLV.Ace then
+        GLV.Ace:RegisterEvent("PLAYER_XP_UPDATE", function() self:OnPlayerXPUpdate() end)
+        GLV.Ace:RegisterEvent("PLAYER_LEVEL_UP", function() self:OnPlayerXPUpdate() end)
+        GLV.Ace:RegisterEvent("LEARNED_SPELL_IN_TAB", function() self:OnSpellLearned() end)
     end
     
-    -- Stocker l'état XP précédent du joueur
     self.previousPlayerLevel = UnitLevel("player")
     self.previousPlayerXP = UnitXP("player")
-
 end
 
+
+--[[ EVENTS ]]--
+
+-- Handle player XP and level updates, check XP requirements
+function CharacterTracker:OnPlayerXPUpdate()
+    local currentLevel = UnitLevel("player")
+    local currentXP = UnitXP("player")
+      
+    if currentLevel > self.previousPlayerLevel or (currentLevel == self.previousPlayerLevel and currentXP > self.previousPlayerXP) then
+        
+        local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
+        
+        self.previousPlayerLevel = currentLevel
+        self.previousPlayerXP = currentXP
+        
+        self:ManageXPTimer(hasXPReqs)
+
+    end
+end
+
+-- Handle spell learning events (debug only)
 function CharacterTracker:OnSpellLearned()
     if GLV.Debug then
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Spell learned")
     end
 end
 
--- Fonction appelée quand l'XP du joueur change
-function CharacterTracker:OnPlayerXPUpdate()
-    local currentLevel = UnitLevel("player")
-    local currentXP = UnitXP("player")
-      
-    -- Vérifier seulement si le niveau ou l'XP a augmenté
-    if currentLevel > self.previousPlayerLevel or (currentLevel == self.previousPlayerLevel and currentXP > self.previousPlayerXP) then
-        
-        -- Vérifier toutes les étapes avec des exigences d'XP
-        local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
-        
-        -- Mettre à jour l'état stocké
-        self.previousPlayerLevel = currentLevel
-        self.previousPlayerXP = currentXP
-        
-        -- Gérer le timer selon s'il y a des exigences XP
-        self:ManageXPTimer(hasXPReqs)
 
-    end
-end
+--[[ OBJECTS FUNCTIONS ]]--
 
--- Vérification périodique des changements d'XP (pour pallier aux événements manqués)
+-- Check for XP changes and update step completion status
 function CharacterTracker:CheckForXPChanges()
     local currentLevel = UnitLevel("player")
     local currentXP = UnitXP("player")
     
-    -- Vérifier seulement si le niveau ou l'XP a changé
     if currentLevel ~= self.previousPlayerLevel or currentXP ~= self.previousPlayerXP then
         
-        -- Vérifier toutes les étapes avec des exigences d'XP
         local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
         
-        -- Mettre à jour l'état stocké
         self.previousPlayerLevel = currentLevel
         self.previousPlayerXP = currentXP
         
-        -- Gérer le timer selon s'il y a des exigences XP
         self:ManageXPTimer(hasXPReqs)
     end
 end
 
--- Vérifier si le joueur a atteint les exigences d'XP pour les étapes actuelles
+-- Check if player meets XP requirements for current guide steps
 function CharacterTracker:CheckExperienceRequirements()
     if not GLV.CurrentDisplaySteps then
-        return false -- Aucune étape XP trouvée
+        return false
     end
     
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
@@ -119,7 +94,6 @@ function CharacterTracker:CheckExperienceRequirements()
         local origIdx = diToOrig[di]
         
         if step and origIdx and not stepState[origIdx] then
-            -- Vérifier dans les lignes de l'étape
             local hasXPReq = false
             for _, line in ipairs(step.lines or {}) do
                 if line.experienceRequirement then
@@ -129,23 +103,19 @@ function CharacterTracker:CheckExperienceRequirements()
                     local requirementMet = false
                     
                     if req.type == "level" then
-                        -- [XP3] -> Atteindre le niveau 3
                         requirementMet = (playerLevel >= req.targetLevel)
 
                     elseif req.type == "level_minus" then
-                        -- [XP3-100] -> Il manque 100 XP pour le niveau 3
                         if playerLevel >= req.targetLevel then
                             requirementMet = true
 
                         elseif playerLevel == (req.targetLevel - 1) then
-                            -- Calculer combien d'XP il manque pour le prochain niveau
                             local xpNeeded = playerMaxXP - playerXP
                             requirementMet = (xpNeeded <= req.xpMinus)
 
                         end
                         
                     elseif req.type == "level_percent" then
-                        -- [XP3.5] ou [XP2.925] -> Niveau avec pourcentage d'XP
                         if playerLevel > req.targetLevel then
                             requirementMet = true
 
@@ -156,17 +126,14 @@ function CharacterTracker:CheckExperienceRequirements()
                     end
                     
                     if requirementMet then
-                        
-                        -- Marquer l'étape comme complétée
                         stepState[origIdx] = true
                         GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
                         
-                        -- Mettre à jour la navigation via le QuestTracker
                         if GLV.QuestTracker then
                             GLV.QuestTracker:UpdateStepNavigation(true, false)
                         end
                         stepCompleted = true
-                        break -- Une seule exigence d'XP par étape
+                        break
                     end
                 end
             end
@@ -177,33 +144,43 @@ function CharacterTracker:CheckExperienceRequirements()
     return hasAnyXPRequirements, stepCompleted
 end
 
--- Vérifier et mettre à jour le timer XP selon les exigences actuelles
+-- Check and update XP timer based on current requirements
 function CharacterTracker:CheckAndUpdateXPTimer()
     local hasXPReqs = self:CheckExperienceRequirements()
     self:ManageXPTimer(hasXPReqs)
 end
 
--- Gérer le timer XP selon s'il y a des exigences à surveiller
+-- Manage XP timer based on whether there are requirements to monitor
 function CharacterTracker:ManageXPTimer(hasXPRequirements)
     if hasXPRequirements then
-        -- Activer le timer s'il y a des exigences XP
         if self.xpCheckTimer then
-            self.xpCheckTimer:Show()
+            if not self.xpCheckTimer then
+                if GLV.Ace then
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Starting XP check timer")
+                    end
+                    self.xpCheckTimer = GLV.Ace:ScheduleRepeatingEvent("XPCheckUpdate", function() self:CheckForXPChanges() end, 2)
+                end
+            end
         end
     else
-        -- Désactiver le timer s'il n'y a pas d'exigences XP
         if self.xpCheckTimer then
-            self.xpCheckTimer:Hide()
+            if not self.xpCheckTimer then
+                if GLV.Ace then
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Stopping XP check timer")
+                    end
+                    self.xpCheckTimer = GLV.Ace:CancelScheduledEvent("XPCheckUpdate")
+                end
+            end
         end
     end
 end
 
--- Vérifier immédiatement les exigences d'XP quand on charge un guide ou change d'étape
+-- Check XP requirements immediately when loading guide or changing steps
 function CharacterTracker:CheckCurrentStepXPRequirements()
-    -- Forcer la vérification des exigences d'XP pour l'étape actuelle
     local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
     
-    -- Gérer le timer selon le résultat
     self:ManageXPTimer(hasXPReqs)
     
     return hasXPReqs, stepCompleted

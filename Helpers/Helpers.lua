@@ -7,6 +7,7 @@ Version: 0.1
 Description:
 Helpers and Compat functions
 ]]--
+local GLV = LibStub("GuidelimeVanilla")
 
 -- string.gmatch
 if not string.gmatch then
@@ -26,7 +27,7 @@ if not table.unpack then
     table.unpack = unpack
 end
 
--- string.len
+-- Get safe string length with type checking
 function safe_strlen(str)
     if type(str) == "string" then
         return string.len(str)
@@ -34,15 +35,13 @@ function safe_strlen(str)
     return 0
 end
 
--- secure string.sub
+-- Get safe string substring with type checking
 function safe_sub(str, i, j)
     if type(str) ~= "string" then return "" end
     return string.sub(str, i, j)
 end
 
-
-
--- naive calculation of the size of a table (only numeric keys)
+-- Get safe table length counting only numeric keys
 function safe_tablelen(t)
     if type(t) ~= "table" then return 0 end
     local count = 0
@@ -54,7 +53,13 @@ function safe_tablelen(t)
     return count
 end
 
--- dump tables
+-- Remove leading and trailing whitespace from string
+function trim(str)
+    if type(str) ~= "string" then return "" end
+    return string.gsub(str, "^%s*(.-)%s*$", "%1")
+end
+
+-- Debug function to dump table contents to chat
 function DumpTable(tbl, indent)
     if not indent then indent = 0 end
     local indentStr = string.rep("  ", indent)
@@ -86,4 +91,9 @@ end
 -- Check if a number is even
 function isEven(n)
     return n / 2 == math.floor(n / 2)
+end
+
+-- Calculate modulo operation
+function modulo(val, by)
+    return val - math.floor(val/by)*by;
 end

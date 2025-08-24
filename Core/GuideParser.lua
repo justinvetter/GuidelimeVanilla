@@ -40,6 +40,10 @@ local codes = {
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
 
+
+--[[ CORE PARSING FUNCTIONS ]]--
+
+-- Get super tag for quest-related tags
 function Parser:getSuperTag(tag)
 	if tag == "ACCEPT" then return "QUEST" end
 	if tag == "TURNIN" then return "QUEST" end
@@ -47,20 +51,20 @@ function Parser:getSuperTag(tag)
 	return tag
 end
 
--- Parse les différents formats d'exigences d'expérience
+-- Parse experience requirement formats from XP tags
 function Parser:ParseExperienceRequirement(xpString)
     if not xpString or xpString == "" then
         return nil
     end
     
-    -- Extraire seulement la partie numérique au début de la chaîne
-    -- [XP3] ou [XP4-290 Grind text] ou [XP3.5 Some text]
+    -- Extract only the numeric part at the beginning of the string
+    -- [XP3] or [XP4-290 Grind text] or [XP3.5 Some text]
     local numericPart, textPart = string.match(xpString, "^([%d%.%-]+)(.*)")
     if not numericPart then
         return nil
     end
     
-    -- [XP3] -> Atteindre le niveau 3
+    -- [XP3] -> Reach level 3
     local simpleLevel = string.match(numericPart, "^(%d+)$")
     if simpleLevel then
         return {
@@ -71,7 +75,7 @@ function Parser:ParseExperienceRequirement(xpString)
         }
     end
     
-    -- [XP3-100] -> Il manque 100 XP pour le niveau 3
+    -- [XP3-100] -> Need 100 XP for level 3
     local levelMinus, xpMinus = string.match(numericPart, "^(%d+)%-(%d+)$")
     if levelMinus and xpMinus then
         return {
@@ -82,19 +86,19 @@ function Parser:ParseExperienceRequirement(xpString)
         }
     end
     
-    -- [XP3.5] -> Niveau 3 avec 50% d'XP ou [XP2.925] -> Niveau 2 avec 92.5% d'XP
+    -- [XP3.5] -> Level 3 with 50% XP or [XP2.925] -> Level 2 with 92.5% XP
     local levelFloat = tonumber(numericPart)
     if levelFloat then
         local level = math.floor(levelFloat)
         local decimal = levelFloat - level
         
-        -- Gérer les cas comme XP5.10 (qui devrait être 10%, pas 1%)
+        -- Handle cases like XP5.10 (which should be 10%, not 1%)
         local percent
         if string.find(numericPart, "%.%d%d$") then
-            -- Si on a exactement 2 chiffres après le point (ex: 5.10), les traiter comme des pourcentages directs
+            -- If we have exactly 2 digits after the point (ex: 5.10), treat them as direct percentages
             percent = decimal * 100
         else
-            -- Sinon, conversion normale (ex: 5.5 = 50%)
+            -- Otherwise, normal conversion (ex: 5.5 = 50%)
             percent = decimal * 100
         end
         
@@ -109,6 +113,7 @@ function Parser:ParseExperienceRequirement(xpString)
     return nil
 end
 
+-- Main guide parsing function
 function Parser:parseGuide(guide, group)
     local parsedGuide = {}
     
@@ -231,7 +236,7 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. tagContent .. "|r"
                             
                         elseif tag == "EXPERIENCE" then
-                            -- Parse les différents formats d'XP
+                            -- Parse different XP formats
                             local xpData = self:ParseExperienceRequirement(tagContent)
                             if xpData then
                                 parsedLine.hasCheckbox = true
@@ -274,6 +279,10 @@ function Parser:parseGuide(guide, group)
     return parsedGuide
 end
 
+
+--[[ GUIDE METADATA FUNCTIONS ]]--
+
+-- Extract guide name, levels and create unique ID
 function Parser:getGuideName(content)
     -- Try different patterns to extract level and name
     local lvlMin, lvlMax, guideName
@@ -309,11 +318,50 @@ function Parser:getGuideName(content)
     return lvlMin, lvlMax, guideName, guideId
 end
 
+-- Extract and format guide description
 function Parser:getGuideDescription(content)
     guideDescription = string.gsub(content, "\\\\", "\n")
     return guideDescription
 end
 
+
+--[[ CONTENT PROCESSING FUNCTIONS ]]--
+
+-- Get quest information including coordinates
+function Parser:GetQuestInfo(content)
+    local questID, _, questPart = string.match(content, "(%d+)(,?)(%d?)")
+    local questName = GLV:GetQuestNameByID(questID)
+    
+    -- Get quest coordinates from database using DBTools
+    -- Pass questPart to get coordinates for the specific part
+    local coords = GLV:GetQuestAllCoords(questID, questPart)
+    
+    return questName, questID, coords
+end
+
+-- Get spell name for learn tags
+function Parser:Learn(content)
+    -- SP XXXX
+    local subcode, id = string.match(content, "(SP)%s(%d+)")
+    id = string.gsub(id, "%s+", "")
+    
+    if subcode == "SP" then
+         return GLV:getSpellName(id)
+    end
+    return "Unknown Spell"
+end
+
+-- Get item name for collect item tags
+function Parser:CollectItem(content)
+    local itemID, itemCount = string.match(content, "(%d+)(,?)(%d?)")
+    local itemName = GLV:GetItemNameById(itemID)
+    return itemName
+end
+
+
+--[[ FILTERING AND REPLACEMENT FUNCTIONS ]]--
+
+-- Filter lines based on player class and race
 function Parser:filterClassRace(line)
     local playerClass = GLV.Settings:GetOption({"CharInfo", "Class"}) or ""
     local playerRace = GLV.Settings:GetOption({"CharInfo", "Race"}) or ""
@@ -346,6 +394,7 @@ function Parser:filterClassRace(line)
     return true
 end
 
+-- Replace class/race tags with appropriate text
 function Parser:replaceClassRace(content)
     local playerClass = string.lower(UnitClass("player"))
     local playerRace = string.lower(UnitRace("player"))
@@ -359,34 +408,6 @@ function Parser:replaceClassRace(content)
         end
 
     end 
-end
-
-function Parser:Learn(content)
-    -- SP XXXX
-    local subcode, id = string.match(content, "(SP)%s(%d+)")
-    id = string.gsub(id, "%s+", "")
-    
-    if subcode == "SP" then
-         return GLV:getSpellName(id)
-    end
-    return "Unknown Spell"
-end
-
-function Parser:GetQuestInfo(content)
-    local questID, _, questPart = string.match(content, "(%d+)(,?)(%d?)")
-    local questName = GLV:GetQuestNameByID(questID)
-    
-    -- Get quest coordinates from database using DBTools
-    -- Pass questPart to get coordinates for the specific part
-    local coords = GLV:GetQuestAllCoords(questID, questPart)
-    
-    return questName, questID, coords
-end
-
-function Parser:CollectItem(content)
-    local itemID, itemCount = string.match(content, "(%d+)(,?)(%d?)")
-    local itemName = GLV:GetItemNameById(itemID)
-    return itemName
 end
 
 GLV.Parser = Parser

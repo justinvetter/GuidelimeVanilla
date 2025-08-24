@@ -14,6 +14,10 @@ local GLV = LibStub("GuidelimeVanilla")
 
 GLV.loadedGuides = GLV.loadedGuides or {}
 
+
+--[[ GUIDE REGISTRATION FUNCTIONS ]]--
+
+-- Register a new guide with the system
 function GLV:RegisterGuide(guideText, group)
     local guide = self.Parser:parseGuide(guideText, group)
     if not guide then
@@ -22,7 +26,6 @@ function GLV:RegisterGuide(guideText, group)
     
     local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
     if not scrollChild then
-        -- Don't return, continue to register the guide
     end
 
     if not self.loadedGuides[group] then
@@ -41,13 +44,15 @@ function GLV:RegisterGuide(guideText, group)
             
             self.Settings:SetOption(group, {"Guide", "CurrentGroup"})
             
-            -- Only populate dropdown if ScrollChild is available
             if scrollChild then
                 self:PopulateDropdown(group)
             end
         end
     end
 end
+
+
+--[[ DROPDOWN MANAGEMENT FUNCTIONS ]]--
 
 -- Function factory to create the dropdown callback function
 local function createDropdownCallback(group, guideId, guideData, displayName, dropdown)
@@ -58,6 +63,7 @@ local function createDropdownCallback(group, guideId, guideData, displayName, dr
     end
 end
 
+-- Populate the guide selection dropdown with all available guides
 function GLV:PopulateDropdown(group)
     local dropdown = _G["GLV_MainDropdown"]
     if not dropdown then
@@ -65,7 +71,6 @@ function GLV:PopulateDropdown(group)
     end
 
     UIDropDownMenu_Initialize(dropdown, function()
-        -- Check if we have any guides at all
         local totalGuides = 0
         for g, guides in pairs(self.loadedGuides) do
             if guides then
@@ -81,26 +86,21 @@ function GLV:PopulateDropdown(group)
             return
         end
         
-        -- Show all guides from all groups
         for g, guides in pairs(self.loadedGuides) do
             if guides and next(guides) then
-                -- Add group header
                 local groupInfo = {}
                 groupInfo.text = "--- " .. g .. " ---"
                 groupInfo.disabled = 1
                 UIDropDownMenu_AddButton(groupInfo)
                 
-                -- Add guides from this group
                 for guideId, guideData in pairs(guides) do
                     local info = {}
-                    -- Add level range to guide name
                     local displayName = guideData.name
                     if guideData.minLevel and guideData.maxLevel then
                         displayName = guideData.name .. " (" .. guideData.minLevel .. "-" .. guideData.maxLevel .. ")"
                     end
                     info.text = displayName
                     info.value = guideId
-                    -- Use the factory function to create the callback
                     info.func = createDropdownCallback(g, guideId, guideData, displayName, dropdown)
                     UIDropDownMenu_AddButton(info)
                 end
@@ -108,12 +108,10 @@ function GLV:PopulateDropdown(group)
         end
     end)
     
-            -- Select the first available guide by default
     local selected = false
     for g, guides in pairs(self.loadedGuides) do
         if guides and next(guides) then
             for guideId, guideData in pairs(guides) do
-                -- Add level range to guide name for display
                 local displayName = guideData.name
                 if guideData.minLevel and guideData.maxLevel then
                     displayName = guideData.name .. " (" .. guideData.minLevel .. "-" .. guideData.maxLevel .. ")"
@@ -133,8 +131,11 @@ function GLV:PopulateDropdown(group)
     end
 end
 
+
+--[[ GUIDE LOADING FUNCTIONS ]]--
+
+-- Load and display a specific guide
 function GLV:LoadGuide(group, guideId)
-    -- Clear TomTom waypoints when changing guide
     if GLV.TomTomIntegration then
         GLV.TomTomIntegration:ClearAllWaypoints()
     end
@@ -154,37 +155,27 @@ function GLV:LoadGuide(group, guideId)
         return
     end
     
-    -- Save the current guide FIRST, before creating steps
     GLV.Settings:SetOption(guideId, {"Guide", "CurrentGuide"})
     
-    -- Set current guide
     GLV.CurrentGuide = guide
     
-    -- Call GuideWriter to create the guide steps
     GLV:CreateGuideSteps(scrollChild, guide, guideId)
     
-    -- Force the scrollframe to update its size
     local scrollFrame = _G["GLV_MainScrollFrame"]
     if scrollFrame then
-        -- Force a recalculation of the scroll range
         scrollFrame:UpdateScrollChildRect()
-        -- Reset scroll position to top
         scrollFrame:SetVerticalScroll(0)
     end
     
-    -- Restore saved state for this guide
     local savedStepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
     local savedCurrentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
     
-    -- Apply saved step state to the UI
     if savedStepState and next(savedStepState) then
         for stepIndex, isCompleted in pairs(savedStepState) do
             if isCompleted then
-                -- Find the step frame that corresponds to this original line index
                 local foundStep = false
                 for displayIndex, originalIndex in pairs(GLV.CurrentDisplayToOriginal) do
                     if originalIndex == stepIndex then
-                        -- This is the step we want to restore
                         local stepFrame = _G[scrollChild:GetName() .. "Step" .. displayIndex]
                         if stepFrame then
                             local checkbox = _G[stepFrame:GetName() .. "Check"]
@@ -200,15 +191,12 @@ function GLV:LoadGuide(group, guideId)
         end
     end
     
-    -- Set current step and update highlighting
     if savedCurrentStep > 0 then
         GLV.Settings:SetOption(savedCurrentStep, {"Guide", "Guides", guideId, "CurrentStep"})
-        -- Force highlighting update
         if GLV.QuestTracker then
             GLV.QuestTracker:RefreshHighlighting()
         end
     else
-        -- If no saved step, set to first unchecked step
         local firstUnchecked = 1
         for i = 1, table.getn(guide.steps) do
             local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
@@ -226,45 +214,36 @@ function GLV:LoadGuide(group, guideId)
         end
     end
     
-    -- Update TomTom waypoint for the current active step
     if GLV.TomTomIntegration then
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
         
         if currentStep > 0 then
             local stepData = nil
             
-            -- First try to get the step from CurrentDisplaySteps (which has all the coordinates)
             if GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
                 stepData = GLV.CurrentDisplaySteps[currentStep]
-            -- Then fallback to raw guide steps
             elseif guide and guide.steps and guide.steps[currentStep] then
                 stepData = guide.steps[currentStep]
             end
             
-            -- Try to update waypoint if we have step data and TomTom is ready
             if stepData and TomTom and TomTom.AddMFWaypoint then
-                -- Add safety check to prevent errors
                 local success, err = pcall(function()
                     GLV.TomTomIntegration:OnStepChanged(stepData)
                 end)
                 if not success then
-                    -- Log error but don't crash
                 end
             end
         end
     end
     
-    -- Apply highlighting using the existing function
     if GLV.QuestTracker then
         GLV.QuestTracker:RefreshHighlighting()
     end
     
-    -- Vérifier immédiatement les exigences d'XP au chargement du guide
     if GLV.CharacterTracker then
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
     end
     
-    -- Update dropdown to reflect the loaded guide
     local dropdown = _G["GLV_MainDropdown"]
     if dropdown then
         local guideData = GLV.loadedGuides[group] and GLV.loadedGuides[group][guideId]
@@ -279,7 +258,10 @@ function GLV:LoadGuide(group, guideId)
     end
 end
 
--- Commande de debug pour afficher loadedGuides
+
+--[[ DEBUG FUNCTIONS ]]--
+
+-- Debug command to display loaded guides information
 function GLV:DebugGuides()
     if not self.loadedGuides then
         return

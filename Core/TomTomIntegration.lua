@@ -12,29 +12,19 @@ local GLV = LibStub("GuidelimeVanilla")
 
 local TomTomIntegration = {}
 
+-- Current active waypoint
+local currentWaypoint = nil
+
+
+--[[ AVAILABILITY CHECK FUNCTIONS ]]--
+
 -- Check if TomTom TWOW is available
 function TomTomIntegration:IsAvailable()
     return TomTom and type(TomTom) == "table"
 end
 
--- Get step type from parsed data
-function TomTomIntegration:GetStepType(stepData)
-    if not stepData or not stepData.lines then
-        return nil
-    end
-    
-    -- Check each line for step type
-    for _, line in ipairs(stepData.lines) do
-        if line.stepType then
-            return line.stepType
-        end
-    end
-    
-    return "" -- Default fallback
-end
 
--- Current active waypoint
-local currentWaypoint = nil
+--[[ WAYPOINT MANAGEMENT FUNCTIONS ]]--
 
 -- Add a waypoint to TomTom
 function TomTomIntegration:AddWaypoint(coords, description)
@@ -90,6 +80,16 @@ function TomTomIntegration:RemoveCurrentWaypoint()
         -- Waypoint removed
     end
 end
+
+-- Clear all waypoints (when guide is unloaded)
+function TomTomIntegration:ClearAllWaypoints()
+    if not self:IsAvailable() then return end
+    
+    self:RemoveCurrentWaypoint()
+end
+
+
+--[[ COORDINATE HANDLING FUNCTIONS ]]--
 
 -- Helper function to find coordinates based on step type
 function TomTomIntegration:FindCoordinatesByType(coordsList, stepType)
@@ -203,6 +203,25 @@ function TomTomIntegration:GetStepDescription(stepData, targetCoords)
     return description
 end
 
+
+--[[ STEP PROCESSING FUNCTIONS ]]--
+
+-- Get step type from parsed data
+function TomTomIntegration:GetStepType(stepData)
+    if not stepData or not stepData.lines then
+        return nil
+    end
+    
+    -- Check each line for step type
+    for _, line in ipairs(stepData.lines) do
+        if line.stepType then
+            return line.stepType
+        end
+    end
+    
+    return "" -- Default fallback
+end
+
 -- Update waypoint when step changes
 function TomTomIntegration:UpdateWaypointForStep(stepData)
     if not self:IsAvailable() then return end
@@ -219,7 +238,7 @@ function TomTomIntegration:UpdateWaypointForStep(stepData)
         for _, line in ipairs(stepData.lines) do
             local lineText = line.text or ""
             for targetId in string.gmatch(lineText, "%[TAR(%d+)%]") do
-                -- Utiliser les fonctions de DBTools pour récupérer les coordonnées
+                -- Use DBTools functions to get coordinates
                 local npcCoords = GLV:GetNPCCoordinates(targetId)
                 if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
                     table.insert(tarCoords, {x = npcCoords.x, y = npcCoords.y, z = npcCoords.z, type = "target", npcId = tonumber(targetId)})
@@ -261,17 +280,13 @@ function TomTomIntegration:UpdateWaypointForStep(stepData)
     end
 end
 
--- Clear all waypoints (when guide is unloaded)
-function TomTomIntegration:ClearAllWaypoints()
-    if not self:IsAvailable() then return end
-    
-    self:RemoveCurrentWaypoint()
-end
-
 -- Public function to be called from other modules
 function TomTomIntegration:OnStepChanged(stepData)
     self:UpdateWaypointForStep(stepData)
 end
+
+
+--[[ INITIALIZATION FUNCTIONS ]]--
 
 -- Initialize integration
 function TomTomIntegration:Init()

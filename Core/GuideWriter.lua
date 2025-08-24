@@ -35,15 +35,15 @@ local CONFIG = {
     titleFrame = GLV_MainLoadedGuideTitle
 }
 
+
+--[[ UI CREATION FUNCTIONS ]]--
+
+-- Create and set the guide title
 local function createTitle(guide)
     GLV_MainLoadedGuideTitle:SetText(guide.name .. " (" .. guide.minLevel .. "-" .. guide.maxLevel .. ")")
 end
 
-local function trim(str)
-    if type(str) ~= "string" then return "" end
-    return string.gsub(str, "^%s*(.-)%s*$", "%1")
-end
-
+-- Wrap text to fit within specified width
 local function wrapText(inputText, maxWidth, font)
     local wrappedText = ""
     local lineCount = 0
@@ -84,6 +84,7 @@ local function wrapText(inputText, maxWidth, font)
     return wrappedText, lineCount, textHeight
 end
 
+-- Create checkbox for step completion
 local function createCheckbox(frame)
     local check = CreateFrame("CheckButton", frame:GetName().."Check", frame)
     check:SetWidth(CONFIG.checkboxSize)
@@ -104,6 +105,9 @@ local function createCheckbox(frame)
     return check
 end
 
+
+--[[ ITEM INTERACTION FUNCTIONS ]]--
+
 -- Find an item in bags by itemId and use it (WoW 1.12 compatible)
 local function useItemById(itemId)
     for bag = 0, 4 do
@@ -121,6 +125,9 @@ local function useItemById(itemId)
     return false
 end
 
+
+--[[ MAIN GUIDE FUNCTIONS ]]--
+
 -- Public: rebuild the guide UI using the current guide and main scroll child
 function GLV:RefreshGuide()
     local guide = GLV.CurrentGuide
@@ -133,6 +140,7 @@ function GLV:RefreshGuide()
     self:CreateGuideSteps(scrollChild, guide, guide.id)
 end
 
+-- Create and display all guide steps in the UI
 function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     if not scrollChild or not scrollChild.GetNumChildren then return end
     if not guide or not guide.steps then return end
@@ -177,14 +185,14 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
             end
-            -- Collecter les questTags de cette ligne OC
+            -- Collect questTags from this OC line
             if guide.steps[i].questTags then
                 for _, tag in ipairs(guide.steps[i].questTags) do
                     table.insert(stepFrameData.questTags, tag)
                 end
             end
             
-            -- Vérifier si cette ligne OC a des exigences d'XP (pour la checkbox)
+            -- Check if this OC line has XP requirements (for checkbox)
             if guide.steps[i].experienceRequirement then
                 stepFrameData.hasCheckbox = true
             end
@@ -195,14 +203,14 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
 
             stepFrameData.hasCheckbox = true
             
-            -- Vérifier si cette ligne a des exigences d'XP (pour la checkbox)
+            -- Check if this line has XP requirements (for checkbox)
             if guide.steps[i].experienceRequirement then
                 stepFrameData.hasCheckbox = true
             end
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
             end
-            -- Collecter les questTags de la ligne principale
+            -- Collect questTags from the main line
             if guide.steps[i].questTags then
                 for _, tag in ipairs(guide.steps[i].questTags) do
                     table.insert(stepFrameData.questTags, tag)

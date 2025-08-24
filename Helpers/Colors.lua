@@ -5,11 +5,11 @@ Author: Grommey
 Version: 0.1
 
 Description:
-DB Query functions
+Colors
 ]]--
 local GLV = LibStub("GuidelimeVanilla")
 
-local Colors = {
+GLV.Colors = {
     APPLIES     = "FFa335ee",
     LEARN       = "FF56c453",
     ACCEPT      = "FF00ffff",
@@ -21,5 +21,3 @@ local Colors = {
     BIND_HEARTHSTONE = "FFA1A1A1",
     EXPERIENCE  = "FFFFFF00",
 }
-
-GLV.Colors = Colors

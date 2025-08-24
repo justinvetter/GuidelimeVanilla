@@ -8,6 +8,11 @@ Description:
 DB Query functions
 ]]--
 local GLV = LibStub("GuidelimeVanilla")
+
+
+--[[ LOCAL FUNCTIONS ]]--
+
+-- Get current locale for database queries
 local function getLocalizedKey()
     local loc = nil
     if GLV and GLV.Settings and GLV.Settings.GetOption then
@@ -21,7 +26,9 @@ local function getLocalizedKey()
 end
 
 
---[[ UNIT RELATED ]]--
+--[[ UNIT RELATED FUNCTIONS ]]--
+
+-- Get NPC name by unit ID
 function GLV:getTargetName(id)
     npcName = "UNKNOWN_NAME"
     local Localized = getLocalizedKey()
@@ -33,8 +40,30 @@ function GLV:getTargetName(id)
     return npcName
 end
 
+-- Get NPC coordinates by unit ID
+function GLV:GetNPCCoordinates(npcID)
+    if not npcID then return nil end
+    
+    local npcData = VGDB and VGDB["units"] and VGDB["units"]["data"] and VGDB["units"]["data"][tonumber(npcID)]
+    if not npcData or not npcData.coords then return nil end
+    
+    for _, coordSet in ipairs(npcData.coords) do
+        if coordSet[1] and coordSet[2] and coordSet[3] then
+            return {
+                x = coordSet[1],
+                y = coordSet[2],
+                z = coordSet[3]
+            }
+        end
+    end
+    
+    return nil
+end
 
---[[ SPELL RELATED ]]--
+
+--[[ SPELL RELATED FUNCTIONS ]]--
+
+-- Get spell name by spell ID
 function GLV:getSpellName(id)
     if not VGDB or not VGDB.spells then
         return "UNKNOWN_SPELL"
@@ -51,7 +80,9 @@ function GLV:getSpellName(id)
 end
 
 
---[[ QUEST RELATED ]]--
+--[[ QUEST RELATED FUNCTIONS ]]--
+
+-- Get quest ID by quest name
 function GLV:GetQuestIDByName(name)
     local Localized = getLocalizedKey()
     if not VGDB or not VGDB.quests or not VGDB.quests[Localized] then
@@ -67,6 +98,7 @@ function GLV:GetQuestIDByName(name)
     return nil
 end
 
+-- Get quest name by quest ID
 function GLV:GetQuestNameByID(id)
     local Localized = getLocalizedKey()
     if not VGDB or not VGDB.quests or not VGDB.quests[Localized] then
@@ -86,6 +118,7 @@ function GLV:GetQuestNameByID(id)
     return questData.T
 end
 
+-- Get all coordinates for a quest (start, end, objectives)
 function GLV:GetQuestAllCoords(id, questPart)
     if not id then 
         return nil 
@@ -100,20 +133,15 @@ function GLV:GetQuestAllCoords(id, questPart)
         return nil
     end
     
-    -- Convert questPart to number (1, 2, 3, etc.)
     questPart = tonumber(questPart) or 1
-    
-    -- Quest " .. id .. " - obj.U: " .. tostring(quest.obj and quest.obj.U) .. ", obj.I: " .. tostring(quest.obj and quest.obj.I) .. ", obj.O: " .. tostring(quest.obj and quest.obj.O)
     
     local allCoords = {}
     
-    -- Get START coordinates (quest givers)
     if quest.start then
-        if quest.start.U then -- NPCs
+        if quest.start.U then
             for _, npcID in ipairs(quest.start.U) do
                 local npcData = VGDB["units"]["data"][npcID]
                 if npcData and npcData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(npcData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -135,11 +163,10 @@ function GLV:GetQuestAllCoords(id, questPart)
             end
         end
         
-        if quest.start.O then -- Objects
+        if quest.start.O then
             for _, objID in ipairs(quest.start.O) do
                 local objData = VGDB["objects"]["data"][objID]
                 if objData and objData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(objData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -162,13 +189,11 @@ function GLV:GetQuestAllCoords(id, questPart)
         end
     end
     
-    -- Get END coordinates (quest turn-ins)
     if quest["end"] then
-        if quest["end"].U then -- NPCs
+        if quest["end"].U then
             for _, npcID in ipairs(quest["end"].U) do
                 local npcData = VGDB["units"]["data"][npcID]
                 if npcData and npcData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(npcData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -191,13 +216,11 @@ function GLV:GetQuestAllCoords(id, questPart)
         end
     end
     
-    -- Get OBJECTIVE coordinates (what needs to be done to complete the quest)
     if quest.obj then
-        if quest.obj.U then -- NPCs to kill
+        if quest.obj.U then
             for _, npcID in ipairs(quest.obj.U) do
                 local npcData = VGDB["units"]["data"][npcID]
                 if npcData and npcData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(npcData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -219,15 +242,13 @@ function GLV:GetQuestAllCoords(id, questPart)
             end
         end
         
-        if quest.obj.I then -- Items to collect
-            -- Get the specific item for this quest part
+        if quest.obj.I then
             local targetItemID = quest.obj.I[questPart]
             if targetItemID then
                 local itemData = VGDB["items"]["data"][targetItemID]
                 local objectiveCoordsAdded = false
                 
                 if itemData and itemData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(itemData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -248,53 +269,43 @@ function GLV:GetQuestAllCoords(id, questPart)
                     end
                 end
                 
-                -- If no item coordinates, try to find mobs/objects that loot this item
                 if not objectiveCoordsAdded then
-                    -- Check if item has U (units that loot it)
                     if VGDB["items"]["data"][targetItemID]["U"] then
                         local units = VGDB["items"]["data"][targetItemID]["U"]
                         
-                        -- Get quest zone from start coordinates for comparison
                         local questZone = nil
                         if quest.start and quest.start.U and quest.start.U[1] then
                             local startNPC = VGDB["units"]["data"][quest.start.U[1]]
                             if startNPC then
                                 if startNPC.coords then
                                     if startNPC.coords[1] then
-                                        questZone = startNPC.coords[1][3] -- Z coordinate of quest start
+                                        questZone = startNPC.coords[1][3]
                                     end
                                 end
                             end
                         end
                         
-                        -- Loop through unit keys (not values) to find unit in same zone
                         local bestUnit = nil
-                        local bestDistance = 999999 -- Very large number instead of math.huge
+                        local bestDistance = 999999
                         
                         for unitID, dropChance in pairs(units) do
                             if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
-                                -- Check each coordinate set for this unit
                                 for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
                                     if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                                        -- Check if unit is in same zone as quest
                                         if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
-                                            -- Calculate distance to player (if player is in same zone)
-                                            local distance = 999999 -- Very large number instead of math.huge
+                                            local distance = 999999
                                             if GetPlayerMapPosition and GetPlayerMapPosition("player") then
                                                 local playerX, playerY = GetPlayerMapPosition("player")
                                                 if playerX and playerY then
-                                                    -- Convert player coords from 0-1 to 0-100 scale
                                                     playerX = playerX * 100
                                                     playerY = playerY * 100
                                                     
-                                                    -- Calculate Euclidean distance
                                                     local dx = coordSet[1] - playerX
                                                     local dy = coordSet[2] - playerY
                                                     distance = math.sqrt(dx * dx + dy * dy)
                                                 end
                                             end
                                             
-                                            -- Keep the closest unit
                                             if distance and bestDistance and distance < bestDistance then
                                                 bestDistance = distance
                                                 bestUnit = {
@@ -307,22 +318,18 @@ function GLV:GetQuestAllCoords(id, questPart)
                                                     note = "Unit that loots this item (same zone, closest)"
                                                 }
                                             end
-                                        else
-                                            -- Unit in different zone, skip
                                         end
                                     end
                                 end
                             end
                         end
                         
-                        -- Add the best unit found (if any)
                         if bestUnit then
                             table.insert(allCoords, bestUnit)
                             objectiveCoordsAdded = true
                         end
                     end
                     
-                    -- Check if item has O (objects that loot it)
                     if not objectiveCoordsAdded and VGDB["items"]["data"][targetItemID]["O"] then
                         local objects = VGDB["items"]["data"][targetItemID]["O"]
                         for objID, dropChance in pairs(objects) do
@@ -340,13 +347,12 @@ function GLV:GetQuestAllCoords(id, questPart)
                                         note = "Object that loots this item"
                                     })
                                     objectiveCoordsAdded = true
-                                    break -- Use first valid object
+                                    break
                                 end
                             end
                         end
                     end
                     
-                    -- FALLBACK: If still no objective coords, use quest start location as approximation
                     if not objectiveCoordsAdded and quest.start and quest.start.U and quest.start.U[1] then
                         local startNPC = VGDB["units"]["data"][quest.start.U[1]]
                         if startNPC and startNPC.coords and startNPC.coords[1] then
@@ -368,11 +374,10 @@ function GLV:GetQuestAllCoords(id, questPart)
             end
         end
         
-        if quest.obj.O then -- Objects to interact with
+        if quest.obj.O then
             for _, objID in ipairs(quest.obj.O) do
                 local objData = VGDB["objects"]["data"][objID]
                 if objData and objData.coords then
-                    -- Find first valid coordinates
                     local validCoords = nil
                     for _, coordSet in ipairs(objData.coords) do
                         if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -398,7 +403,10 @@ function GLV:GetQuestAllCoords(id, questPart)
     return allCoords
 end
 
---[[ ZONE RELATED ]]--
+
+--[[ ZONE RELATED FUNCTIONS ]]--
+
+-- Get zone name by zone ID
 function GLV:GetZoneNameByID(zoneID)
     if not zoneID then return nil end
     
@@ -410,36 +418,29 @@ function GLV:GetZoneNameByID(zoneID)
     return VGDB["zones"][Localized][tonumber(zoneID)]
 end
 
---[[ COORDINATES RELATED ]]--
-function GLV:GetNPCCoordinates(npcID)
-    if not npcID then return nil end
-    
-    -- Get NPC data from database
-    local npcData = VGDB and VGDB["units"] and VGDB["units"]["data"] and VGDB["units"]["data"][tonumber(npcID)]
-    if not npcData or not npcData.coords then return nil end
-    
-    -- Get first available coordinates
-    for _, coordSet in ipairs(npcData.coords) do
-        if coordSet[1] and coordSet[2] and coordSet[3] then
-            return {
-                x = coordSet[1],
-                y = coordSet[2],
-                z = coordSet[3]
-            }
-        end
-    end
-    
-        return nil
-    end
 
+--[[ ITEM RELATED FUNCTIONS ]]--
+
+-- Get item name by item ID
+function GLV:GetItemNameById(itemID)
+    if not itemID then return "UNKNOWN_ITEM" end
+    
+    local Localized = getLocalizedKey()
+    if not VGDB or not VGDB["items"] or not VGDB["items"][Localized] then 
+        return "UNKNOWN_ITEM"
+    end
+    
+    local itemName = VGDB["items"][Localized][tonumber(itemID)]
+    return itemName or "UNKNOWN_ITEM"
+end
+
+-- Get item coordinates by item ID
 function GLV:GetItemCoordinates(itemID)
     if not itemID then return nil end
     
-    -- Get item data from database
     local itemData = VGDB and VGDB["items"] and VGDB["items"]["data"] and VGDB["items"]["data"][tonumber(itemID)]
     if not itemData or not itemData.coords then return nil end
     
-    -- Get first available coordinates
     for _, coordSet in ipairs(itemData.coords) do
         if coordSet[1] and coordSet[2] and coordSet[3] then
             return {
@@ -451,17 +452,4 @@ function GLV:GetItemCoordinates(itemID)
     end
     
     return nil
-end
-
---[[ ITEM RELATED ]]--
-function GLV:GetItemNameById(itemID)
-    if not itemID then return "UNKNOWN_ITEM" end
-    
-    local Localized = getLocalizedKey()
-    if not VGDB or not VGDB["items"] or not VGDB["items"][Localized] then 
-        return "UNKNOWN_ITEM"
-    end
-    
-    local itemName = VGDB["items"][Localized][tonumber(itemID)]
-    return itemName or "UNKNOWN_ITEM"
 end

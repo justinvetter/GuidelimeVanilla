@@ -10,6 +10,7 @@ Settings manager
 local GLV = LibStub("GuidelimeVanilla")
 
 local Settings = {}
+GLV.Settings = Settings
 
 local defaults = {
     char = {
@@ -32,24 +33,27 @@ local defaults = {
             CurrentGroup = "Unknown",
             CurrentGuide = "Unknown",
             CurrentStep = 0,
-            Guides = {}, -- Will store data for each guide by guideId
+            Guides = {},
         },
         QuestTracker = {
             Accepted = {},
             Completed = {},
-            AutoObjectiveTracking = true, -- Surveiller automatiquement les objectifs de quête
+            AutoObjectiveTracking = true,
         }
     }
 }
 
+
+--[[ OBJECTS FUNCTIONS ]]--
+
+-- Get default settings configuration
 function Settings:GetDefaults()
     return defaults
 end
 
+-- Initialize database and apply default values
 function Settings:InitializeDB()
-    -- Wait for GLV.Ace.db to be initialized
     if not GLV.Ace or not GLV.Ace.db then
-        -- Schedule a retry in a bit
         if GLV.Ace and GLV.Ace.ScheduleEvent then
             GLV.Ace:ScheduleEvent(function()
                 if GLV.Ace and GLV.Ace.db then
@@ -62,12 +66,9 @@ function Settings:InitializeDB()
     
     self.db = GLV.Ace.db
     
-    -- Apply defaults to ensure all required keys exist
     if self.db.char then
-        -- Copy default values to the database (only if they don't exist)
         for key, value in pairs(defaults.char) do
             if self.db.char[key] == nil then
-                -- Copy the entire table/value
                 if type(value) == "table" then
                     self.db.char[key] = {}
                     for subKey, subValue in pairs(value) do
@@ -77,7 +78,6 @@ function Settings:InitializeDB()
                     self.db.char[key] = value
                 end
             elseif type(value) == "table" and type(self.db.char[key]) == "table" then
-                -- For nested tables, ensure all sub-keys exist
                 for subKey, subValue in pairs(value) do
                     if self.db.char[key][subKey] == nil then
                         self.db.char[key][subKey] = subValue
@@ -88,6 +88,7 @@ function Settings:InitializeDB()
     end
 end
 
+-- Get current profile from database
 function Settings:GetProfile()
     if not self.db then 
         self:InitializeDB()
@@ -98,6 +99,7 @@ function Settings:GetProfile()
     return self.db.char
 end
 
+-- Get option value using nested key array
 function Settings:GetOption(keys)
     if not self.db then 
         self:InitializeDB()
@@ -117,7 +119,7 @@ function Settings:GetOption(keys)
     return profile
 end
 
--- Value is the first parameter, as we're going into multi table
+-- Set option value using nested key array
 function Settings:SetOption(value, keys)
     if not self.db then 
         self:InitializeDB()
@@ -142,5 +144,3 @@ function Settings:SetOption(value, keys)
 
     profile[lastKey] = value
 end
-
-GLV.Settings = Settings
