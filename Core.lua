@@ -91,9 +91,6 @@ function addon:OnEnable()
         -- Wait a bit for TomTom to load, then initialize
         self:ScheduleEvent(function()
             if GLV.TomTomIntegration then
-                if GLV.Debug then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Initializing TomTom integration...")
-                end
                 GLV.TomTomIntegration:Init()
                 
                 -- Force update the waypoint for the current step after a delay
@@ -101,10 +98,6 @@ function addon:OnEnable()
                     if GLV.TomTomIntegration and GLV.CurrentGuide then
                         local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
                         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-                        
-                        if GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Force-updating TomTom waypoint for step " .. currentStep)
-                        end
                         
                         if currentStep > 0 and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
                             local stepData = GLV.CurrentDisplaySteps[currentStep]
@@ -218,19 +211,5 @@ function addon:LoadDefaultGuideForRace(race)
     end
 end
 
--- Commande de test pour la vérification XP
-SLASH_GLVXP1 = "/glvxp"
-SlashCmdList["GLVXP"] = function(msg)
-    if GLV.CharacterTracker then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Forcing XP check...")
-        end
-        GLV.CharacterTracker:CheckCurrentStepXPRequirements()
-    else
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r CharacterTracker not initialized")
-        end
-    end
-end
 
 GLV.Addon = addon

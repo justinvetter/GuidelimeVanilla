@@ -53,30 +53,16 @@ function Parser:ParseExperienceRequirement(xpString)
         return nil
     end
     
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Parsing XP string: '" .. xpString .. "'")
-    end
-    
     -- Extraire seulement la partie numérique au début de la chaîne
     -- [XP3] ou [XP4-290 Grind text] ou [XP3.5 Some text]
     local numericPart, textPart = string.match(xpString, "^([%d%.%-]+)(.*)")
     if not numericPart then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime Parser]|r No numeric part found in: '" .. xpString .. "'")
-        end
         return nil
-    end
-    
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Extracted numeric part: '" .. numericPart .. "'")
     end
     
     -- [XP3] -> Atteindre le niveau 3
     local simpleLevel = string.match(numericPart, "^(%d+)$")
     if simpleLevel then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Parsed as simple level: " .. simpleLevel)
-        end
         return {
             targetLevel = tonumber(simpleLevel),
             targetPercent = 100,
@@ -88,9 +74,6 @@ function Parser:ParseExperienceRequirement(xpString)
     -- [XP3-100] -> Il manque 100 XP pour le niveau 3
     local levelMinus, xpMinus = string.match(numericPart, "^(%d+)%-(%d+)$")
     if levelMinus and xpMinus then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Parsed as level minus: Level " .. levelMinus .. " minus " .. xpMinus .. " XP")
-        end
         return {
             targetLevel = tonumber(levelMinus),
             xpMinus = tonumber(xpMinus),
@@ -115,10 +98,6 @@ function Parser:ParseExperienceRequirement(xpString)
             percent = decimal * 100
         end
         
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Parsed as level percent: Level " .. level .. " (" .. percent .. "%) from '" .. numericPart .. "'")
-        end
-        
         return {
             targetLevel = level,
             targetPercent = percent,
@@ -127,9 +106,6 @@ function Parser:ParseExperienceRequirement(xpString)
         }
     end
     
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime Parser]|r Failed to parse numeric part: '" .. numericPart .. "'")
-    end
     return nil
 end
 
@@ -231,11 +207,6 @@ function Parser:parseGuide(guide, group)
                                 title = questTitle
                             })
                             
-                            -- Debug : afficher les questTags créées
-                            if GLV.Debug then
-                                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Parser]|r Added questTag: " .. tag .. " for quest " .. questId .. " (" .. questTitle .. ")")
-                            end
-                            
                             -- Add coordinates to the parsed line
                             if questCoords and table.getn(questCoords) > 0 then
                                 parsedLine.coords = questCoords
@@ -265,20 +236,6 @@ function Parser:parseGuide(guide, group)
                             if xpData then
                                 parsedLine.hasCheckbox = true
                                 parsedLine.experienceRequirement = xpData
-                                
-                                if GLV.Debug then
-                                    local debugMsg = "|cFF00FF00[GuideLime Parser]|r Added XP requirement: " .. tagContent .. " -> Level " .. xpData.targetLevel
-                                    if xpData.type == "level_minus" then
-                                        debugMsg = debugMsg .. " (missing " .. xpData.xpMinus .. " XP)"
-                                    elseif xpData.type == "level_percent" then
-                                        debugMsg = debugMsg .. " (" .. xpData.targetPercent .. "%)"
-                                    else
-                                        debugMsg = debugMsg .. " (100%)"
-                                    end
-                                    if GLV.Debug then
-                                        DEFAULT_CHAT_FRAME:AddMessage(debugMsg)
-                                    end
-                                end
                                 
                                 return "|c" .. GLV.Colors[tag] .. xpData.text .. "|r"
                             end

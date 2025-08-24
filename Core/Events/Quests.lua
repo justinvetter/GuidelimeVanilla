@@ -118,10 +118,6 @@ function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isCo
                 description = description,
                 isCompleted = isCompleted
             }
-            
-            if GLV.Debug and isCompleted then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime Objectives]|r Objective completed: " .. description)
-            end
         end
     end
     
@@ -130,10 +126,6 @@ function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isCo
         -- Vérifier si on n'a pas déjà traité cette complétion
         local currentState = self.previousQuestStates[questId]
         if not currentState or not currentState.wasComplete then
-            -- La quête vient d'être complétée !
-            if GLV.Debug then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime Objectives]|r Quest completed: " .. questTitle .. " (ID: " .. questId .. ")")
-            end
             
             -- Marquer automatiquement les étapes [QC] correspondantes
             self:HandleQuestAction(questId, questTitle, "COMPLETE")
@@ -191,10 +183,6 @@ function QuestRewardCompleteButton()
     local id = GLV:GetQuestIDByName(title)
     local numId = tonumber(id)
     
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[GuideLime TURNIN]|r Processing quest turnin: " .. (title or "unknown") .. " (ID: " .. (numId or "nil") .. ")")
-    end
-    
     -- Optionally mark completed store and refresh UI/advance
     local store = GLV.QuestTracker and GLV.QuestTracker.store or GLV.Settings:GetOption({"QuestTracker"}) or GLV.Settings:GetDefaults().char.QuestTracker
     if store and store.Completed and numId then
@@ -212,9 +200,6 @@ end
 
 -- Nouvelle fonction centralisée pour gérer les actions de quête
 function QuestTracker:HandleQuestAction(questId, title, actionType)
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[GuideLime " .. actionType .. "]|r Handling quest action: " .. actionType .. " for quest " .. questId)
-    end
     
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
@@ -224,9 +209,6 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
     local multiActionStepFound = false
     
     if not GLV.CurrentDisplaySteps then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r No CurrentDisplaySteps available")
-        end
         return
     end
     
@@ -239,14 +221,6 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
         local origIdx = diToOrig[di]
         
         if step and origIdx then
-            if GLV.Debug then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Checking display step " .. di .. " (orig " .. origIdx .. ")")
-                if step.questTags then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r  Step has " .. table.getn(step.questTags) .. " questTags")
-                else
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r  Step has no questTags")
-                end
-            end
             
             -- Vérifier si cette étape contient des questTags
             if step.questTags and table.getn(step.questTags) > 0 then
@@ -267,10 +241,6 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
                         stepQuestState[origIdx][actionKey] = true
                         hasMatchingAction = true
                         multiActionStepFound = true
-                        
-                        if GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Marked action completed: " .. actionKey)
-                        end
                     end
                     
                     -- Vérifier si cette action est complétée
@@ -288,14 +258,6 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
                     if allActionsDone then
                         stepState[origIdx] = true
                         stepMarked = true
-                        
-                        if GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r All actions completed for step " .. origIdx .. ", marking as done")
-                        end
-                    else
-                        if GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Step " .. origIdx .. " has remaining actions, not marking as done yet")
-                        end
                     end
                     
                     break -- On a trouvé l'étape correspondante, on peut sortir
@@ -364,10 +326,6 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
         end
     end
     
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Setting current step to: " .. firstUnchecked)
-    end
-    
     GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
     
     -- Mettre à jour l'interface
@@ -415,10 +373,7 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
                     targetScroll = math.min(targetScroll, maxScroll)
                 end
                 GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
-                
-                if GLV.Debug then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Auto-scrolled to step " .. firstUnchecked .. " (scroll position: " .. targetScroll .. ")")
-                end
+
             end
             
             -- Mettre à jour TomTom

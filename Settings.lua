@@ -64,10 +64,6 @@ function Settings:InitializeDB()
     
     -- Apply defaults to ensure all required keys exist
     if self.db.char then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Settings]|r Ensuring default values exist in database")
-        end
-        
         -- Copy default values to the database (only if they don't exist)
         for key, value in pairs(defaults.char) do
             if self.db.char[key] == nil then
@@ -80,17 +76,11 @@ function Settings:InitializeDB()
                 else
                     self.db.char[key] = value
                 end
-                if GLV.Debug then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Settings]|r Applied default: " .. key .. " = " .. tostring(value))
-                end
             elseif type(value) == "table" and type(self.db.char[key]) == "table" then
                 -- For nested tables, ensure all sub-keys exist
                 for subKey, subValue in pairs(value) do
                     if self.db.char[key][subKey] == nil then
                         self.db.char[key][subKey] = subValue
-                        if GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Settings]|r Applied nested default: " .. key .. "." .. subKey .. " = " .. tostring(subValue))
-                        end
                     end
                 end
             end

@@ -207,11 +207,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 for _, tag in ipairs(guide.steps[i].questTags) do
                     table.insert(stepFrameData.questTags, tag)
                 end
-                
-                -- Debug : afficher les questTags ajoutées à l'étape d'affichage
-                if GLV.Debug then
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime Writer]|r Step " .. i .. " has " .. table.getn(guide.steps[i].questTags) .. " questTags, total in display step: " .. table.getn(stepFrameData.questTags))
-                end
+
             end
             -- map original index (main line) to display index pre-insertion
             local displayIndex = safe_tablelen(displaySteps) + 1
