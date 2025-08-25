@@ -136,8 +136,8 @@ end
 
 -- Load and display a specific guide
 function GLV:LoadGuide(group, guideId)
-    if GLV.TomTomIntegration then
-        GLV.TomTomIntegration:ClearAllWaypoints()
+    if GLV.GuideNavigation then
+        GLV.GuideNavigation:ClearAllWaypoints()
     end
     
     local guideData = GLV.loadedGuides[group] and GLV.loadedGuides[group][guideId]
@@ -214,7 +214,7 @@ function GLV:LoadGuide(group, guideId)
         end
     end
     
-    if GLV.TomTomIntegration then
+    if GLV.GuideNavigation then
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
         
         if currentStep > 0 then
@@ -228,7 +228,7 @@ function GLV:LoadGuide(group, guideId)
             
             if stepData and TomTom and TomTom.AddMFWaypoint then
                 local success, err = pcall(function()
-                    GLV.TomTomIntegration:OnStepChanged(stepData)
+                    GLV.GuideNavigation:OnStepChanged(stepData)
                 end)
                 if not success then
                 end

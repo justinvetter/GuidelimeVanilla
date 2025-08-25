@@ -303,9 +303,9 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
 
             end
             
-            if GLV.TomTomIntegration and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
+            	if GLV.GuideNavigation and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
                 local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
-                GLV.TomTomIntegration:OnStepChanged(stepData)
+                GLV.GuideNavigation:OnStepChanged(stepData)
             end
         end
     end

@@ -372,13 +372,13 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 -- Also update the global CurrentStep for other modules
                 GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
                 
-                -- Update TomTom waypoint for the new active step
-                if newActiveStep > 0 and GLV.TomTomIntegration then
-                    local activeStepData = displaySteps[newActiveStep]
-                    if activeStepData then
-                        GLV.TomTomIntegration:OnStepChanged(activeStepData)
-                    end
-                end
+                -- Update Guide Navigation waypoint for the new active step
+				if newActiveStep > 0 and GLV.GuideNavigation then
+					local activeStepData = displaySteps[newActiveStep]
+					if activeStepData then
+						GLV.GuideNavigation:OnStepChanged(activeStepData)
+					end
+				end
                 
                 -- Scroll to show the new active step at the top (only when checking a box)
                 if checked and newActiveStep > 0 and GLV_MainScrollFrame then
@@ -446,11 +446,11 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
         end
     end
     
-    -- Set initial TomTom waypoint
-    if activeStep > 0 and GLV.TomTomIntegration then
+    -- Set initial Guide Navigation waypoint
+    if activeStep > 0 and GLV.GuideNavigation then
         local activeStepData = displaySteps[activeStep]
         if activeStepData then
-            GLV.TomTomIntegration:OnStepChanged(activeStepData)
+            GLV.GuideNavigation:OnStepChanged(activeStepData)
         end
     end
     
@@ -485,10 +485,10 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
      
      createTitle(guide)
     
-    -- Initialize TomTom integration AFTER the guide is completely displayed and parsed
+    -- Initialize Guide Navigation integration AFTER the guide is completely displayed and parsed
     GLV.Ace:ScheduleEvent(function()
-        if GLV.TomTomIntegration then
-            GLV.TomTomIntegration:Init()
+        if GLV.GuideNavigation then
+            GLV.GuideNavigation:Init()
         end
         
 

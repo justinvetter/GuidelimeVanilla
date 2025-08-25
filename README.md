@@ -117,7 +117,7 @@ GuideLimeVanilla/
 │   ├── GuideLibrary.lua     # Guide loading and management
 │   ├── GuideParser.lua      # Guide text parsing
 │   ├── GuideWriter.lua      # UI rendering and management
-│   ├── TomTomIntegration.lua # TomTom waypoint integration
+│   ├── GuideNavigation.lua # Guide Navigation waypoint integration
 │   └── Events/
 │       └── Quests.lua       # Quest event handling
 ├── Guides/                  # Guide files
