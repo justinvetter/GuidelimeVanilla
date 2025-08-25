@@ -9,6 +9,13 @@ Helpers and Compat functions
 ]]--
 local GLV = LibStub("GuidelimeVanilla")
 
+
+function GetPlayerFacing()
+	local p = Minimap
+	local m = ({p:GetChildren()})[9]
+	return m:GetFacing()
+end
+
 -- string.gmatch
 if not string.gmatch then
     string.gmatch = string.gfind
@@ -96,4 +103,64 @@ end
 -- Calculate modulo operation
 function modulo(val, by)
     return val - math.floor(val/by)*by;
+end
+
+--[[ STRING UTILITY FUNCTIONS ]]--
+
+-- Split a string by delimiter (compatible with WoW's strsplit)
+function strsplit(delimiter, text, maxSplits)
+    if not text or not delimiter then
+        return text
+    end
+    
+    maxSplits = maxSplits or -1
+    local result = {}
+    local start = 1
+    local delimiterLength = string.len(delimiter)
+    local count = 0
+    
+    while start <= string.len(text) and (maxSplits == -1 or count < maxSplits) do
+        local pos = string.find(text, delimiter, start, true)
+        if not pos then
+            break
+        end
+        
+        count = count + 1
+        result[count] = string.sub(text, start, pos - 1)
+        start = pos + delimiterLength
+    end
+    
+    -- Add the remaining part of the string
+    if start <= string.len(text) then
+        count = count + 1
+        result[count] = string.sub(text, start)
+    end
+    
+    return unpack(result)
+end
+
+-- Alternative implementation using string.gmatch for better performance
+function strsplit_gmatch(delimiter, text, maxSplits)
+    if not text or not delimiter then
+        return text
+    end
+    
+    maxSplits = maxSplits or -1
+    local result = {}
+    local count = 0
+    
+    -- Escape special characters in delimiter for pattern matching
+    local escapedDelimiter = string.gsub(delimiter, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+    local pattern = "([^" .. escapedDelimiter .. "]+)"
+    
+    for match in string.gmatch(text, pattern) do
+        count = count + 1
+        result[count] = match
+        
+        if maxSplits ~= -1 and count >= maxSplits then
+            break
+        end
+    end
+    
+    return unpack(result)
 end
