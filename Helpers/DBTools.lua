@@ -60,40 +60,6 @@ function GLV:GetNPCCoordinates(npcID)
     return nil
 end
 
-function GLV:FindClosestUnit(unitID, playerX, playerY, questZone)
-    if not unitID or not playerX or not playerY then
-        return nil, nil
-    end
-    
-    local nearest = nil
-    local bestUnit = nil
-    
-    if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
-        for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
-            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
-                    local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
-                    local distance = math.sqrt(x * x + y * y)
-
-                    if not nearest or distance < nearest then
-                        nearest = distance
-                        bestUnit = {
-                            type = "objective",
-                            npcId = unitID,
-                            x = coordSet[1],
-                            y = coordSet[2],
-                            z = coordSet[3],
-                            distance = distance
-                        }
-                    end
-                end
-            end
-        end
-    end
-    
-    return bestUnit, nearest
-end
-
 
 --[[ SPELL RELATED FUNCTIONS ]]--
 
@@ -150,6 +116,25 @@ function GLV:GetQuestNameByID(id)
     end
 
     return questData.T
+end
+
+-- Get quest level by quest ID
+function GLV:GetQuestLevelByID(id)
+    if not VGDB or not VGDB.quests then
+        return "UNKNOWN_QUEST"
+    end
+
+    local numId = tonumber(id)
+    if not numId then
+        return "UNKNOWN_QUEST"
+    end
+
+    local questLevel = VGDB.quests["data"][tonumber(numId)].lvl
+    if not questLevel or questLevel == "UNKNOWN" then
+        return "UNKNOWN_QUEST"
+    end
+
+    return questLevel
 end
 
 -- Get all coordinates for a quest (start, end, objectives)
@@ -251,16 +236,17 @@ function GLV:GetQuestAllCoords(id, questPart)
     end
     
     if quest.obj then
+        -- UNITS OBJECTIVES
         if quest.obj.U then
-            local playerX, playerY = GetPlayerMapPosition("player")
             for _, npcID in ipairs(quest.obj.U) do
-                local bestUnit, nearest = self:FindClosestUnit(npcID, playerX, playerY, questZone)
+                local bestUnit, nearest = GLV.GuideNavigation:FindClosestUnit(npcID, questZone)
                 if bestUnit then
                     table.insert(allCoords, bestUnit)
                 end
             end
         end
         
+        -- ITEMS OBJECTIVES
         if quest.obj.I then
             local targetItemID = quest.obj.I[questPart]
             if targetItemID then
@@ -304,43 +290,45 @@ function GLV:GetQuestAllCoords(id, questPart)
                             end
                         end
                         
+                        -- local playerX, playerY = GetPlayerMapPosition("player")
+                        -- if not playerX or not playerY then
+                        --     playerX, playerY = GetPlayerMapPosition("player")
+                        -- end
                         local bestUnit = nil
                         local bestDistance = 999999
-                        
+                        local bestUnits = {}
+
                         for unitID, dropChance in pairs(units) do
-                            if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
-                                for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
-                                    if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                                        if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
-                                            local distance = 999999
-                                            if GetPlayerMapPosition and GetPlayerMapPosition("player") then
-                                                local playerX, playerY = GetPlayerMapPosition("player")
-                                                if playerX and playerY then
-                                                    playerX = playerX * 100
-                                                    playerY = playerY * 100
-                                                    
-                                                    local dx = coordSet[1] - playerX
-                                                    local dy = coordSet[2] - playerY
-                                                    distance = math.sqrt(dx * dx + dy * dy)
-                                                end
-                                            end
-                                            
-                                            if distance and bestDistance and distance < bestDistance then
-                                                bestDistance = distance
-                                                bestUnit = {
-                                                    type = "objective",
-                                                    itemId = targetItemID,
-                                                    npcId = unitID,
-                                                    x = coordSet[1],
-                                                    y = coordSet[2],
-                                                    z = coordSet[3],
-                                                    note = "Unit that loots this item (same zone, closest)"
-                                                }
-                                            end
-                                        end
-                                    end
-                                end
+                            local bestUnit, nearest = GLV.GuideNavigation:FindClosestUnit(unitID, questZone)
+                            if bestUnit and nearest then
+                                DEFAULT_CHAT_FRAME:AddMessage("DBTools:GetQuestAllCoords " .. unitID .. " " .. nearest)
+                                table.insert(bestUnits, {unit = bestUnit, nearest = nearest })
                             end
+                                -- if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                                --     if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
+                                --         local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
+                                --         local distance = math.sqrt(x * x + y * y)
+                                        
+                                --         if distance < bestDistance then
+                                --             bestDistance = distance
+                                --             bestUnit = {
+                                --                 type = "objective",
+                                --                 itemId = targetItemID,
+                                --                 npcId = unitID,
+                                --                 x = coordSet[1],
+                                --                 y = coordSet[2],
+                                --                 z = coordSet[3],
+                                --                 note = "Unit that loots this item (same zone, closest)"
+                                --             }
+                                --         end
+                                --     end
+                                -- end
+                        end
+
+                        table.sort(bestUnits, function(a, b) return a.nearest < b.nearest end)
+                        DumpTable(bestUnits)
+                        if (bestUnits[1]) then
+                            bestUnit = bestUnits[1].unit
                         end
                         
                         if bestUnit then

@@ -176,6 +176,11 @@ function Parser:parseGuide(guide, group)
                             return GLV:getTargetName(tagContent)
 
                         elseif tag == "LEARN" then
+                            parsedLine.icon = "Interface\\GossipFrame\\TrainerGossipIcon"
+                            if not parsedLine.learnTags then parsedLine.learnTags = {} end
+                            table.insert(parsedLine.learnTags, {
+                                spellId = tonumber(tagContent)
+                            })
                             return "|c" .. GLV.Colors[tag] .. self:Learn(tagContent) .. "|r"
 
                         elseif tag == "COLLECT_ITEM" then
@@ -224,6 +229,7 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. "Repair " .. "|r"
 
                         elseif tag == "VENDOR" then
+                            parsedLine.icon = "Interface\\GossipFrame\\VendorGossipIcon"
                             return "|c" .. GLV.Colors[tag] .. "Vendor " .. "|r"
 
                         elseif tag == "HEARTHSTONE" then

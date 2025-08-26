@@ -485,12 +485,4 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
      
      createTitle(guide)
     
-    -- Initialize Guide Navigation integration AFTER the guide is completely displayed and parsed
-    GLV.Ace:ScheduleEvent(function()
-        if GLV.GuideNavigation then
-            GLV.GuideNavigation:Init()
-        end
-        
-
-    end, 1.0)
 end

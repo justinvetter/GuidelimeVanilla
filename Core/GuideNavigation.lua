@@ -28,13 +28,8 @@ local currentWaypoint = nil
 local navigationFrame = nil
 local updateTimer = 0
 local isNavigationActive = false
+local playerPos = nil
 
---[[ HELPER FUNCTIONS ]]--
-
--- Helper modulo function for Vanilla compatibility
-local function modulo(val, by)
-    return val - math.floor(val/by)*by
-end
 
 --[[ FRAME CREATION AND MANAGEMENT ]]--
 
@@ -71,7 +66,7 @@ function GuideNavigation:CreateNavigationFrame()
     navigationFrame.arrow:SetVertexColor(1, 1, 1, 1)
     navigationFrame.arrow:SetTexCoord(0, 56/512, 0, 42/512)
     
-    navigationFrame.questName = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    navigationFrame.questName = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     navigationFrame.questName:SetPoint("TOP", navigationFrame, "BOTTOM", 0, -8)
     navigationFrame.questName:SetTextColor(1, 0.8, 0)
     navigationFrame.questName:SetText("")
@@ -155,7 +150,7 @@ function GuideNavigation:GetDistanceColor(distance)
 end
 
 -- Calculates angle from player to target, accounting for player facing
-function GuideNavigation:CalculateAngle(playerPos, targetPos)
+function GuideNavigation:CalculateAngle(targetPos)
     local degtemp = 0
     local playerFacing = GetPlayerFacing()
     local dist, xDelta, yDelta = Astrolabe:ComputeDistance( playerPos.c, playerPos.z, playerPos.x, playerPos.y, targetPos.c, targetPos.z, targetPos.x, targetPos.y )
@@ -288,7 +283,7 @@ function GuideNavigation:UpdateNavigation()
         return
     end
     
-    local playerPos = self:GetPlayerPosition()
+    playerPos = self:GetPlayerPosition()
     if not playerPos then
         return
     end
@@ -304,9 +299,31 @@ function GuideNavigation:UpdateNavigation()
     
     if currentWaypoint.description then
         local description = currentWaypoint.description
-        if string.find(description, " - ") then
-            local questName, objective = strsplit(" - ", description, 2)
-            navigationFrame.questName:SetText(questName or "")
+        if string.find(description, " | ") then
+            local color_rgb = {}
+            local questLevel, questName, objective = strsplit(" | ", description, 3)
+            questLevel = string.gsub(questLevel, "%[(.-)%]", function(questLevel)
+                local playerLevel = UnitLevel("player")
+                local diff = tonumber(questLevel) - playerLevel
+  
+                if diff >= 6 then
+                    color_rgb = { r = 233/255, g = 54/255, b = 65/255 }
+                elseif diff >= 3 and diff <= 5 then
+                    color_rgb = { r = 255/255, g = 125/255, b = 10/255 }
+                elseif diff >= -2 and diff <= 2 then
+                    color_rgb = { r = 255/255, g = 235/255, b = 42/255 }
+                elseif diff >= -5 and diff <= -3 then
+                    color_rgb = { r = 144/255, g = 200/255, b = 54/255 }
+                elseif diff <= -6 then
+                    color_rgb = { r = 128/255, g = 128/255, b = 128/255 }
+                else
+                    color_rgb = { r = 1, g = 1, b = 1 }
+                end
+
+                return "[" .. questLevel .. "]"
+            end)
+            navigationFrame.questName:SetText(questLevel .. " " .. questName or "")
+            navigationFrame.questName:SetTextColor(color_rgb.r, color_rgb.g, color_rgb.b, 1)
             navigationFrame.objective:SetText(objective or "")
         else
             navigationFrame.questName:SetText("")
@@ -333,7 +350,7 @@ function GuideNavigation:UpdateNavigation()
         navigationFrame.arrow:SetAlpha(1.0)
     end
     
-    local angle = self:CalculateAngle(playerPos, currentWaypoint)
+    local angle = self:CalculateAngle(currentWaypoint)
     local arrowIndex = self:AngleToArrowIndex(angle)
     
     local left, right, top, bottom = self:GetArrowTexCoords(arrowIndex)
@@ -386,42 +403,45 @@ function GuideNavigation:GetStepDescription(stepData, targetCoords)
     
     if questId then
         local questName = GLV:GetQuestNameByID(questId)
+        local questLevel = GLV:GetQuestLevelByID(questId)
         
         if questName then
             if targetCoords and targetCoords.type == "target" then
                 if targetCoords.npcId then
                     local npcName = GLV:getTargetName(targetCoords.npcId)
                     if npcName then
-                        description = questName .. " - Talk to " .. npcName
+                        description = questName .. " | Talk to " .. npcName
                     else
-                        description = questName .. " - Find NPC " .. targetCoords.npcId
+                        description = questName .. " | Find NPC " .. targetCoords.npcId
                     end
                 else
-                    description = questName .. " - Objective"
+                    description = questName .. " | Objective"
                 end
             elseif targetCoords and targetCoords.type == "objective" then
                 if targetCoords.npcId then
                     local npcName = GLV:getTargetName(targetCoords.npcId)
                     if npcName then
-                        description = questName .. " - Kill " .. npcName
+                        description = questName .. " | Kill " .. npcName
                     else
-                        description = questName .. " - Kill NPC " .. targetCoords.npcId
+                        description = questName .. " | Kill NPC " .. targetCoords.npcId
                     end
                 elseif targetCoords.itemId then
                     local itemName = GLV:GetItemNameById(tonumber(targetCoords.itemId))
                     if itemName then
-                        description = questName .. " - Collect " .. itemName
+                        description = questName .. " | Collect " .. itemName
                     else
-                        description = questName .. " - Collect Item " .. targetCoords.itemId
+                        description = questName .. " | Collect Item " .. targetCoords.itemId
                     end
                 elseif targetCoords.objectId then
-                    description = questName .. " - Interact with Object"
+                    description = questName .. " | Interact with Object"
                 else
-                    description = questName .. " - Complete Objective"
+                    description = questName .. " | Complete Objective"
                 end
             else
                 description = questName
             end
+
+            description = "[" .. questLevel .. "]" .. " | " .. description
         else
             description = "Quest " .. questId
         end
@@ -502,6 +522,12 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
     local targetCoords = nil
     local stepType = self:GetStepType(stepData)
     
+    -- Get current player position once for consistency
+    playerPos = self:GetPlayerPosition()
+    if not playerPos then
+        return
+    end
+    
     local tarCoords = {}
     if stepData and stepData.lines then
         for _, line in ipairs(stepData.lines) do
@@ -538,6 +564,50 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
         end
     end
     
+    -- NEW: Handle quest objectives with proper player position
+    if (not targetCoords and stepData and stepData.lines) or stepType == "COMPLETE" then
+        for _, line in ipairs(stepData.lines) do
+            if line.questId then
+                local questId = line.questId
+                local questCoords = GLV:GetQuestAllCoords(questId)
+                
+                if questCoords and table.getn(questCoords) > 0 then
+                    -- For objective coordinates, find the closest one
+                    local closestCoord = nil
+                    local closestDistance = nil
+                    
+                    for _, coord in ipairs(questCoords) do
+                        if coord.type == "objective" then
+                            -- Calculate distance using the same method as the rest of the navigation system
+                            local coordPos = {
+                                c = playerPos.c,
+                                x = coord.x / 100,
+                                y = coord.y / 100,
+                                z = coord.z
+                            }
+                            
+                            local distance = self:CalculateDistance(playerPos, coordPos)
+                            
+                            if not closestDistance or distance < closestDistance then
+                                closestDistance = distance
+                                closestCoord = coord
+                            end
+                        end
+                    end
+                    
+                    if closestCoord then
+                        targetCoords = closestCoord
+                        break
+                    else
+                        -- Fallback to any coordinate if no objective found
+                        targetCoords = self:FindCoordinatesByType(questCoords, stepType)
+                        if targetCoords then break end
+                    end
+                end
+            end
+        end
+    end
+    
     if targetCoords then
         local description = self:GetStepDescription(stepData, targetCoords)
         self:AddWaypoint(targetCoords, description)
@@ -569,6 +639,49 @@ function GuideNavigation:GetZoneInfo(zone, cont)
     return nil, nil, nil
 end
 
+function GuideNavigation:FindClosestUnit(unitID, questZone)
+    if not unitID then
+        return nil, nil
+    end
+    
+    local nearest = nil
+    local bestUnit = nil
+
+    while playerPos == nil do
+        playerPos = self:GetPlayerPosition()
+    end
+
+    local playerX, playerY = playerPos.x, playerPos.y
+    
+    if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
+        for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
+            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
+                    if playerX and playerY then
+                        local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
+                        local distance = math.sqrt(x * x + y * y)
+
+                        if not nearest or distance < nearest then
+                            nearest = distance
+                            bestUnit = {
+                                type = "objective",
+                                npcId = unitID,
+                                x = coordSet[1],
+                                y = coordSet[2],
+                                z = coordSet[3],
+                                distance = distance
+                            }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return bestUnit, nearest
+end
+
+
 --[[ INITIALIZATION ]]--
 
 -- Initializes the navigation system
@@ -576,6 +689,8 @@ function GuideNavigation:Init()
     if not GLV.Settings:GetOption({"Navigation", "AutoShow"}) then
         GLV.Settings:SetOption(true, {"Navigation", "AutoShow"})
     end
+
+    playerPos = self:GetPlayerPosition()
     
     if GLV.CurrentGuide then
         local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"

@@ -45,10 +45,60 @@ function CharacterTracker:OnPlayerXPUpdate()
     end
 end
 
--- Handle spell learning events (debug only)
+-- Handle spell learning events
 function CharacterTracker:OnSpellLearned()
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Spell learned")
+    if not GLV.CurrentDisplaySteps then
+        return false
+    end
+
+    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
+    local diCount = GLV.CurrentDisplayStepsCount or 0
+    local diToOrig = GLV.CurrentDisplayToOriginal or {}
+    
+    for di = 1, diCount do
+        local step = GLV.CurrentDisplaySteps[di]
+        local origIdx = diToOrig[di]
+        
+        if step and origIdx and not stepState[origIdx] then
+            if step.learnTags and table.getn(step.learnTags) > 0 then
+                local allSpellsLearned = true
+                
+                for _, learnTag in ipairs(step.learnTags) do
+                    local spellId = learnTag.spellId
+                    local spellName = GLV:getSpellName(spellId)
+                    local spellFound = false
+                    
+                    local i = 1
+                    while true do
+                        local bookSpellName, bookSpellRank = GetSpellName(i, BOOKTYPE_SPELL)
+                        if not bookSpellName then
+                            break
+                        end
+                        
+                        if spellName == bookSpellName then
+                            spellFound = true
+                            break
+                        end
+                        i = i + 1
+                    end
+                    
+                    if not spellFound then
+                        allSpellsLearned = false
+                        break
+                    end
+                end
+                
+                if allSpellsLearned then
+                    stepState[origIdx] = true
+                    GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+                    if GLV.QuestTracker then
+                        GLV.QuestTracker:UpdateStepNavigation(true, false)
+                    end
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Step completed: All spells learned!")
+                end
+            end
+        end
     end
 end
 
