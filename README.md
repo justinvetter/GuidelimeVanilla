@@ -4,11 +4,11 @@ A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced
 
 ## 🖼️ Screenshots
 
-### Main Interface & Navigation
-![Full Screen](images/screen1.png) ![Navigation System](images/screen3.png)
+### Main Interface & Guide
+![Full Screen](images/screen1.png) ![Guide](images/screen2.png)
 
-### Guide Display
-![Guide Display](images/screen2.png)
+### Navigation System
+![Arrow](images/screen3.png)
 
 ## 🌟 Features
 
