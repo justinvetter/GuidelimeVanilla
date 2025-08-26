@@ -60,6 +60,40 @@ function GLV:GetNPCCoordinates(npcID)
     return nil
 end
 
+function GLV:FindClosestUnit(unitID, playerX, playerY, questZone)
+    if not unitID or not playerX or not playerY then
+        return nil, nil
+    end
+    
+    local nearest = nil
+    local bestUnit = nil
+    
+    if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
+        for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
+            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
+                    local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
+                    local distance = math.sqrt(x * x + y * y)
+
+                    if not nearest or distance < nearest then
+                        nearest = distance
+                        bestUnit = {
+                            type = "objective",
+                            npcId = unitID,
+                            x = coordSet[1],
+                            y = coordSet[2],
+                            z = coordSet[3],
+                            distance = distance
+                        }
+                    end
+                end
+            end
+        end
+    end
+    
+    return bestUnit, nearest
+end
+
 
 --[[ SPELL RELATED FUNCTIONS ]]--
 
@@ -218,26 +252,11 @@ function GLV:GetQuestAllCoords(id, questPart)
     
     if quest.obj then
         if quest.obj.U then
+            local playerX, playerY = GetPlayerMapPosition("player")
             for _, npcID in ipairs(quest.obj.U) do
-                local npcData = VGDB["units"]["data"][npcID]
-                if npcData and npcData.coords then
-                    local validCoords = nil
-                    for _, coordSet in ipairs(npcData.coords) do
-                        if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                            validCoords = coordSet
-                            break
-                        end
-                    end
-                    
-                    if validCoords then
-                        table.insert(allCoords, {
-                            type = "objective",
-                            npcId = npcID,
-                            x = validCoords[1],
-                            y = validCoords[2],
-                            z = validCoords[3]
-                        })
-                    end
+                local bestUnit, nearest = self:FindClosestUnit(npcID, playerX, playerY, questZone)
+                if bestUnit then
+                    table.insert(allCoords, bestUnit)
                 end
             end
         end

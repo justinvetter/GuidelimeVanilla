@@ -121,12 +121,12 @@ end
 
 -- Formats distance text with proper units
 function GuideNavigation:FormatDistance(distance)
-    local distanceInMeters = distance * 10
+    local distanceInMeters = distance
     
     if distanceInMeters < 1000 then
-        return string.format("%.0fm", distanceInMeters / 10)
+        return string.format("%.0fm", distanceInMeters)
     else
-        return string.format("%.1fkm", distanceInMeters / 10000)
+        return string.format("%.1fkm", distanceInMeters / 1000)
     end
 end
 
