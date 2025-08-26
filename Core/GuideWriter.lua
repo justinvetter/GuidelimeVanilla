@@ -346,65 +346,101 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     stepState[origIdx] = checked
                 end
                 GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-                -- recompute activeStep as first unchecked
-                local totalSteps = table.getn(displaySteps)
-                local newActiveStep = 0
-                for i2 = 1, totalSteps do
-                    if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                        local orig = displayIndexToOriginalIndex[i2]
-                        if orig and not stepState[orig] then
-                            newActiveStep = i2
-                            break
+                
+                -- Get current active step before potentially changing it
+                local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+                local newActiveStep = currentActiveStep
+                
+                -- Only recalculate active step if we're checking a box (not unchecking)
+                if checked then
+                    -- If we're checking the current active step, move to next unchecked
+                    if currentIndex == currentActiveStep then
+                        local totalSteps = table.getn(displaySteps)
+                        for i2 = currentIndex + 1, totalSteps do
+                            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                                local orig = displayIndexToOriginalIndex[i2]
+                                if orig and not stepState[orig] then
+                                    newActiveStep = i2
+                                    break
+                                end
+                            end
+                        end
+                        -- If no next unchecked found, stay on current step
+                        if newActiveStep == currentActiveStep then
+                            newActiveStep = currentIndex
+                        end
+                    else
+                        -- If checking a different step, don't change active step
+                        newActiveStep = currentActiveStep
+                    end
+                else
+                    -- CORRECTION : Quand on décoche, ajuster l'étape active sans scroller
+                    if currentIndex == currentActiveStep - 1 then
+                        -- If unchecking the step just before current active, make it active
+                        newActiveStep = currentIndex
+                    else
+                        -- Otherwise, don't change active step
+                        newActiveStep = currentActiveStep
+                    end
+                end
+                
+                -- Only update if step actually changed
+                if newActiveStep ~= currentActiveStep then
+                    GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+                    GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(table.getn(displaySteps))..")")
+                    
+                    -- visually highlight the new active step and reset others
+                    for i2 = 1, table.getn(displaySteps) do
+                        local f = getglobal(scrollChild:GetName().."Step"..i2)
+                        if f and f.SetBackdropColor then
+                            local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
+                            f:SetBackdropColor(unpack(col))
+                        end
+                    end
+                    
+                    -- Update Guide Navigation waypoint for the new active step
+                    if newActiveStep > 0 and GLV.GuideNavigation then
+                        local activeStepData = displaySteps[newActiveStep]
+                        if activeStepData then
+                            GLV.GuideNavigation:OnStepChanged(activeStepData)
+                        end
+                    end
+                    
+                    -- CORRECTION : Scroll seulement si on a coché une case (pas si on a décoché)
+                    if checked and newActiveStep > 0 and GLV_MainScrollFrame then
+                        -- Calculate the exact position: sum of all previous step heights + spacing
+                        local targetScroll = 0
+                        for i = 1, newActiveStep - 1 do
+                            local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
+                            if stepFrame and stepFrame.GetHeight then
+                                targetScroll = targetScroll + stepFrame:GetHeight()
+                            end
+                        end
+                        -- Add spacing between frames (spacing * (number of steps - 1))
+                        if newActiveStep > 1 then
+                            targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (newActiveStep - 1))
+                        end
+                        -- Ensure we don't scroll below 0
+                        targetScroll = math.max(0, targetScroll)
+                        -- Adjust scroll to leave some space above for manual scrolling
+                        local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
+                        if maxScroll and maxScroll > 0 then
+                            targetScroll = math.min(targetScroll, maxScroll)
+                        end
+                        GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
+                    end
+                else
+                    -- CORRECTION : Même si l'étape active ne change pas, 
+                    -- il faut quand même mettre à jour les couleurs car l'état de la case a changé
+                    for i2 = 1, table.getn(displaySteps) do
+                        local f = getglobal(scrollChild:GetName().."Step"..i2)
+                        if f and f.SetBackdropColor then
+                            local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
+                            f:SetBackdropColor(unpack(col))
                         end
                     end
                 end
-                GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-                GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(totalSteps)..")")
-                -- visually highlight the new active step and reset others
-                for i2 = 1, totalSteps do
-                    local f = getglobal(scrollChild:GetName().."Step"..i2)
-                    if f and f.SetBackdropColor then
-                        local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
-                        f:SetBackdropColor(unpack(col))
-                    end
-                end
-                
-                -- Also update the global CurrentStep for other modules
-                GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-                
-                -- Update Guide Navigation waypoint for the new active step
-				if newActiveStep > 0 and GLV.GuideNavigation then
-					local activeStepData = displaySteps[newActiveStep]
-					if activeStepData then
-						GLV.GuideNavigation:OnStepChanged(activeStepData)
-					end
-				end
-                
-                -- Scroll to show the new active step at the top (only when checking a box)
-                if checked and newActiveStep > 0 and GLV_MainScrollFrame then
-                    -- Calculate the exact position: sum of all previous step heights + spacing
-                    local targetScroll = 0
-                    for i = 1, newActiveStep - 1 do
-                        local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
-                        if stepFrame and stepFrame.GetHeight then
-                            targetScroll = targetScroll + stepFrame:GetHeight()
-                        end
-                    end
-                    -- Add spacing between frames (spacing * (number of steps - 1))
-                    if newActiveStep > 1 then
-                        targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (newActiveStep - 1))
-                    end
-                    -- Ensure we don't scroll below 0
-                    targetScroll = math.max(0, targetScroll)
-                    -- Adjust scroll to leave some space above for manual scrolling
-                    local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
-                    if maxScroll and maxScroll > 0 then
-                        targetScroll = math.min(targetScroll, maxScroll)
-                    end
-                    GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
-                end
-                 
-             end)
+            end)
         end
 
         frame:SetHeight(frameHeight + 4)

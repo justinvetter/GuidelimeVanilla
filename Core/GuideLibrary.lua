@@ -197,18 +197,36 @@ function GLV:LoadGuide(group, guideId)
             GLV.QuestTracker:RefreshHighlighting()
         end
     else
-        local firstUnchecked = 1
-        for i = 1, table.getn(guide.steps) do
-            local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
-            if stepFrame then
-                local checkbox = _G[stepFrame:GetName() .. "Check"]
-                if checkbox and not checkbox:GetChecked() then
-                    firstUnchecked = i
-                    break
+        -- Only calculate first unchecked if we don't have a saved step
+        -- and if we really need to change the current step
+        local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
+        
+        if currentStep == 0 then
+            -- No current step, find first unchecked
+            local firstUnchecked = 0
+            
+            -- First, check if we have a valid current step that's not completed
+            local stepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
+            local diToOrig = GLV.CurrentDisplayToOriginal or {}
+            
+            -- Look for the first step that's not completed
+            for i = 1, table.getn(guide.steps) do
+                local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
+                if stepFrame then
+                    local checkbox = _G[stepFrame:GetName() .. "Check"]
+                    if checkbox and not checkbox:GetChecked() then
+                        firstUnchecked = i
+                        break
+                    end
                 end
             end
+            
+            -- Only set firstUnchecked if we found a valid one
+            if firstUnchecked > 0 then
+                GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
+            end
         end
-        GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
+        
         if GLV.QuestTracker then
             GLV.QuestTracker:RefreshHighlighting()
         end

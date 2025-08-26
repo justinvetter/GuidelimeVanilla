@@ -138,7 +138,7 @@ function GLV:GetQuestLevelByID(id)
 end
 
 -- Get all coordinates for a quest (start, end, objectives)
-function GLV:GetQuestAllCoords(id, questPart)
+function GLV:GetQuestAllCoords(id, questPart, onlyObjective)
     if not id then 
         return nil 
     end
@@ -156,79 +156,81 @@ function GLV:GetQuestAllCoords(id, questPart)
     
     local allCoords = {}
     
-    if quest.start then
-        if quest.start.U then
-            for _, npcID in ipairs(quest.start.U) do
-                local npcData = VGDB["units"]["data"][npcID]
-                if npcData and npcData.coords then
-                    local validCoords = nil
-                    for _, coordSet in ipairs(npcData.coords) do
-                        if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                            validCoords = coordSet
-                            break
+    if not onlyObjectives then
+        if quest.start then
+            if quest.start.U then
+                for _, npcID in ipairs(quest.start.U) do
+                    local npcData = VGDB["units"]["data"][npcID]
+                    if npcData and npcData.coords then
+                        local validCoords = nil
+                        for _, coordSet in ipairs(npcData.coords) do
+                            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                                validCoords = coordSet
+                                break
+                            end
+                        end
+                        
+                        if validCoords then
+                            table.insert(allCoords, {
+                                type = "start",
+                                npcId = npcID,
+                                x = validCoords[1],
+                                y = validCoords[2],
+                                z = validCoords[3]
+                            })
                         end
                     end
-                    
-                    if validCoords then
-                        table.insert(allCoords, {
-                            type = "start",
-                            npcId = npcID,
-                            x = validCoords[1],
-                            y = validCoords[2],
-                            z = validCoords[3]
-                        })
+                end
+            end
+            
+            if quest.start.O then
+                for _, objID in ipairs(quest.start.O) do
+                    local objData = VGDB["objects"]["data"][objID]
+                    if objData and objData.coords then
+                        local validCoords = nil
+                        for _, coordSet in ipairs(objData.coords) do
+                            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                                validCoords = coordSet
+                                break
+                            end
+                        end
+                        
+                        if validCoords then
+                            table.insert(allCoords, {
+                                type = "start",
+                                objectId = objID,
+                                x = validCoords[1],
+                                y = validCoords[2],
+                                z = validCoords[3]
+                            })
+                        end
                     end
                 end
             end
         end
         
-        if quest.start.O then
-            for _, objID in ipairs(quest.start.O) do
-                local objData = VGDB["objects"]["data"][objID]
-                if objData and objData.coords then
-                    local validCoords = nil
-                    for _, coordSet in ipairs(objData.coords) do
-                        if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                            validCoords = coordSet
-                            break
+        if quest["end"] then
+            if quest["end"].U then
+                for _, npcID in ipairs(quest["end"].U) do
+                    local npcData = VGDB["units"]["data"][npcID]
+                    if npcData and npcData.coords then
+                        local validCoords = nil
+                        for _, coordSet in ipairs(npcData.coords) do
+                            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                                validCoords = coordSet
+                                break
+                            end
                         end
-                    end
-                    
-                    if validCoords then
-                        table.insert(allCoords, {
-                            type = "start",
-                            objectId = objID,
-                            x = validCoords[1],
-                            y = validCoords[2],
-                            z = validCoords[3]
-                        })
-                    end
-                end
-            end
-        end
-    end
-    
-    if quest["end"] then
-        if quest["end"].U then
-            for _, npcID in ipairs(quest["end"].U) do
-                local npcData = VGDB["units"]["data"][npcID]
-                if npcData and npcData.coords then
-                    local validCoords = nil
-                    for _, coordSet in ipairs(npcData.coords) do
-                        if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                            validCoords = coordSet
-                            break
+                        
+                        if validCoords then
+                            table.insert(allCoords, {
+                                type = "end",
+                                npcId = npcID,
+                                x = validCoords[1],
+                                y = validCoords[2],
+                                z = validCoords[3]
+                            })
                         end
-                    end
-                    
-                    if validCoords then
-                        table.insert(allCoords, {
-                            type = "end",
-                            npcId = npcID,
-                            x = validCoords[1],
-                            y = validCoords[2],
-                            z = validCoords[3]
-                        })
                     end
                 end
             end
@@ -295,13 +297,12 @@ function GLV:GetQuestAllCoords(id, questPart)
                         --     playerX, playerY = GetPlayerMapPosition("player")
                         -- end
                         local bestUnit = nil
-                        local bestDistance = 999999
+                        -- local bestDistance = 999999
                         local bestUnits = {}
 
                         for unitID, dropChance in pairs(units) do
                             local bestUnit, nearest = GLV.GuideNavigation:FindClosestUnit(unitID, questZone)
                             if bestUnit and nearest then
-                                DEFAULT_CHAT_FRAME:AddMessage("DBTools:GetQuestAllCoords " .. unitID .. " " .. nearest)
                                 table.insert(bestUnits, {unit = bestUnit, nearest = nearest })
                             end
                                 -- if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
@@ -326,7 +327,6 @@ function GLV:GetQuestAllCoords(id, questPart)
                         end
 
                         table.sort(bestUnits, function(a, b) return a.nearest < b.nearest end)
-                        DumpTable(bestUnits)
                         if (bestUnits[1]) then
                             bestUnit = bestUnits[1].unit
                         end
