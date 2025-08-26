@@ -1,6 +1,14 @@
 # GuideLime Vanilla
 
-A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced guide system with automatic quest tracking, TomTom integration, and smart UI management. **Now includes Sage 1-60 Alliance leveling guides built-in!**
+A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced guide system with automatic quest tracking, autonomous navigation system, and smart UI management. **Now includes Sage 1-60 Alliance leveling guides built-in!**
+
+## 🖼️ Screenshots
+
+### Main Interface & Navigation
+![Full Screen](images/screen1.png) ![Navigation System](screen3)
+
+### Guide Display
+![Guide Display](images/screen2)
 
 ## 🌟 Features
 
@@ -11,11 +19,13 @@ A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced
 - **Auto-scrolling**: Automatically scrolls to show the current active step
 - **Built-in Guides**: Includes Sage 1-60 Alliance leveling guides
 
-### 🗺️ TomTom Integration
-- **Automatic Waypoints**: Creates TomTom waypoints for quest objectives
+### 🗺️ Autonomous Navigation System
+- **Custom Arrow Display**: Built-in navigation arrow
+- **Automatic Waypoints**: Creates waypoints for quest objectives automatically
 - **Smart Coordinate Selection**: Automatically selects the most relevant coordinates based on step type
 - **Multi-part Quest Support**: Handles complex quests with multiple objectives
 - **Zone-aware Navigation**: Prioritizes coordinates within the quest's zone
+- **Real-time Distance Updates**: Shows distance to objectives with color-coded indicators
 
 ### 🎯 Quest Tracking
 - **Automatic Progress**: Automatically checks off completed quest steps
@@ -28,23 +38,24 @@ A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced
 - **Icon Integration**: Clickable icons for special actions (e.g., Hearthstone usage)
 - **Responsive Layout**: Adapts to different content lengths and screen sizes
 - **Color-coded Steps**: Visual distinction between different step types
+- **Movable Navigation Frame**: Drag and drop navigation arrow (hold Shift)
 
 ### 🔧 Technical Features
 - **Lua 5.0 Compatibility**: Fully compatible with WoW Classic 1.12
 - **Efficient Memory Management**: Optimized for performance
 - **Modular Architecture**: Clean separation of concerns
 - **Error Handling**: Robust error handling and fallbacks
+- **Astrolabe Integration**: Advanced coordinate calculations and zone management
 
 ## 📦 Installation
 
 ### Prerequisites
 - World of Warcraft Classic (1.12)
-- Optional: [TomTom TWOW](https://github.com/laytya/TomTom-TWOW) for waypoint functionality
 
 ### Installation Steps
 1. Download the addon files
 2. Extract to your `World of Warcraft/Interface/AddOns/` directory
-3. Ensure the folder name matches the addon name
+3. Ensure the folder name matches the addon name (remove -master if you download from Github)
 4. Restart World of Warcraft
 
 ## 🚀 Usage
@@ -55,31 +66,19 @@ A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced
 3. **Track Progress**: Checkboxes automatically update as you progress
 4. **Navigate**: Use the auto-scrolling feature to stay on track
 
-### TomTom Integration
-- **Automatic Waypoints**: Waypoints are created automatically for quest objectives
-- **Manual Control**: Use TomTom's built-in controls to manage waypoints
+### Autonomous Navigation
+- **Automatic Waypoints**: Navigation arrow appears automatically for quest objectives
+- **Manual Control**: Hold Shift + left click to move the navigation frame
 - **Zone Awareness**: Coordinates are prioritized based on quest zone
+- **Distance Indicators**: 
+  - 🟢 Green: Very close to objective
+  - 🟡 Yellow: Medium distance
+  - 🔴 Red: Very far from objective
 
 ### Quest Management
 - **Accept Quests**: Steps automatically check off when quests are accepted
 - **Complete Objectives**: Progress is tracked in real-time
 - **Abandon Quests**: Properly handles quest abandonment and state updates
-
-## 🎮 Supported Step Types
-
-### Quest Steps
-- **ACCEPT**: Quest acceptance steps with NPC coordinates
-- **TURNIN**: Quest completion steps with turn-in NPC coordinates
-- **COMPLETE**: Objective completion steps with target coordinates
-- **OBJECTIVE**: General objective steps
-
-### Utility Steps
-- **REPAIR**: Equipment repair steps
-- **VENDOR**: Vendor interaction steps
-- **HEARTHSTONE**: Hearthstone usage steps (clickable icon)
-
-### Special Steps
-- **Multi-line Steps**: Steps with multiple objectives or instructions
 
 ## ⚙️ Configuration
 
@@ -88,11 +87,13 @@ The addon automatically saves your progress and preferences:
 - **Step State**: Tracks which steps are completed
 - **Current Step**: Remembers your current position in guides
 - **Quest Progress**: Maintains quest acceptance and completion states
+- **Navigation Position**: Saves the position of the navigation frame
 
 ### Customization
 - **Colors**: Step highlighting colors can be modified in the code
 - **Spacing**: UI element spacing is configurable
 - **Icons**: Custom icons can be added for special actions
+- **Navigation**: Arrow size and update frequency are configurable
 
 ## 🔍 Technical Details
 
@@ -101,12 +102,12 @@ The addon automatically saves your progress and preferences:
 - **Guide Parser**: Parses guide text and extracts step information
 - **Guide Writer**: Renders the UI and manages user interactions
 - **Quest Tracker**: Monitors quest state changes
-- **TomTom Integration**: Handles waypoint creation and management
+- **Guide Navigation**: Handles autonomous navigation and waypoint management
 - **Database Tools**: Manages coordinate and quest data
 
 ### Dependencies
 - **Ace2**: Core framework for addon management
-- **TomTom TWOW**: Optional dependency for waypoint functionality
+- **Astrolabe**: Advanced coordinate and zone management library
 
 ### File Structure
 ```
@@ -117,7 +118,7 @@ GuideLimeVanilla/
 │   ├── GuideLibrary.lua     # Guide loading and management
 │   ├── GuideParser.lua      # Guide text parsing
 │   ├── GuideWriter.lua      # UI rendering and management
-│   ├── GuideNavigation.lua # Guide Navigation waypoint integration
+│   ├── GuideNavigation.lua # Autonomous navigation system
 │   └── Events/
 │       └── Quests.lua       # Quest event handling
 ├── Guides/                  # Guide files
@@ -165,14 +166,9 @@ Guides use the standard Guidelime format:
 ## 🐛 Troubleshooting
 
 ### Common Issues
-1. **TomTom Not Working**: Ensure TomTom TWOW is installed and enabled
+1. **Navigation Not Working**: Ensure the addon is properly loaded and enabled
 2. **Guides Not Loading**: Check that all files are in the correct directory
 3. **Progress Not Saving**: Verify that the addon has permission to save variables
-
-### Debug Commands
-- `/reload`: Reloads the UI and addon state
-- `/run GLV:DebugGuides()`: Shows debug information about loaded guides
-- Check chat for any error messages or debug information
 
 ## 🤝 Contributing
 
@@ -201,7 +197,8 @@ This addon is provided as-is for educational and entertainment purposes. Use at 
 - **WoW Classic Community**: For testing and feedback
 - **Sage**: For the excellent 1-60 Alliance leveling guides
 - **Shagu**: For the databases (Quests, Items, Units, ...)
-- **LaYT**: For the spells database, and TomTom TWOW !
+- **Laytya**: For the Spells database
+- **Astrolabe Team**: For the advanced coordinate management library
 
 ## 📞 Support
 
@@ -209,6 +206,7 @@ For support, bug reports, or feature requests:
 - Check the troubleshooting section above
 - Review the code for any obvious issues
 - Test with a clean addon installation
+- Open an issue on [GitHub](https://github.com/JeromeM/GuideLimeVanilla/issues)
 
 ---
 
