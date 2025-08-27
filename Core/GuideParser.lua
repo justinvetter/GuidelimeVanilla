@@ -170,6 +170,9 @@ function Parser:parseGuide(guide, group)
                             parsedLine.check = false
                             return ""
 
+                        elseif tag == "GOTO" then
+                            return ""
+
                         elseif tag == "APPLIES" then
                             return "|c" .. GLV.Colors[tag] .. self:replaceClassRace(tagContent) .. "|r"
 
