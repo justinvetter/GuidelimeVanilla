@@ -205,10 +205,6 @@ function GLV:LoadGuide(group, guideId)
             -- No current step, find first unchecked
             local firstUnchecked = 0
             
-            -- First, check if we have a valid current step that's not completed
-            local stepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
             -- Look for the first step that's not completed
             for i = 1, table.getn(guide.steps) do
                 local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
@@ -221,9 +217,37 @@ function GLV:LoadGuide(group, guideId)
                 end
             end
             
-            -- Only set firstUnchecked if we found a valid one
+            -- Set firstUnchecked if we found a valid one
             if firstUnchecked > 0 then
                 GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
+            end
+        else
+            -- We have a current step, verify it's still valid
+            local stepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
+            local diToOrig = GLV.CurrentDisplayToOriginal or {}
+            
+            if diToOrig[currentStep] then
+                local origIdx = diToOrig[currentStep]
+                local stepCompleted = stepState[origIdx]
+                
+                if stepCompleted then
+                    -- Current step is completed, find next valid step
+                    local firstUnchecked = 0
+                    for i = 1, table.getn(guide.steps) do
+                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
+                        if stepFrame then
+                            local checkbox = _G[stepFrame:GetName() .. "Check"]
+                            if checkbox and not checkbox:GetChecked() then
+                                firstUnchecked = i
+                                break
+                            end
+                        end
+                    end
+                    
+                    if firstUnchecked > 0 then
+                        GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
+                    end
+                end
             end
         end
         

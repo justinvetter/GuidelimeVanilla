@@ -36,6 +36,7 @@ local codes = {
     V   = "VENDOR",
     H   = "HEARTHSTONE",
     S   = "BIND_HEARTHSTONE",
+    UI  = "USE_ITEM",
 }
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
@@ -185,6 +186,9 @@ function Parser:parseGuide(guide, group)
 
                         elseif tag == "COLLECT_ITEM" then
                             return "|c" .. GLV.Colors[tag] .. self:CollectItem(tagContent) .. "|r"
+
+                        elseif tag == "USE_ITEM" then
+                            return "|c" .. GLV.Colors[tag] .. GLV:GetItemNameById(tagContent) .. "|r"
 
                         elseif self:getSuperTag(tag) == "QUEST" then
                             local fullText = ""

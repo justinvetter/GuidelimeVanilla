@@ -72,11 +72,15 @@ local function getContPosition( zoneData, z, x, y )
 	end
 	if ( z ~= 0 ) then
 		zoneData = zoneData[z];
-		x = x * zoneData.width + zoneData.xOffset;
-		y = y * zoneData.height + zoneData.yOffset;
+		if zoneData then
+			x = x * zoneData.width + zoneData.xOffset;
+			y = y * zoneData.height + zoneData.yOffset;
+		end
 	else
-		x = x * zoneData.width;
-		y = y * zoneData.height;
+		if zoneData then
+			x = x * zoneData.width;
+			y = y * zoneData.height;
+		end
 	end
 	return x, y;
 end
