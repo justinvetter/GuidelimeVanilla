@@ -171,7 +171,7 @@ function addon:LoadDefaultGuideForRace(race)
         ["Human"] = "Elwynn Forest",
         ["Dwarf"] = "Dun Morogh", 
         ["Gnome"] = "Dun Morogh",
-        ["Night Elf"] = "Teldrassil"
+        ["NightElf"] = "Teldrassil"
     }
     
     local defaultGuideName = raceGuides[race]
