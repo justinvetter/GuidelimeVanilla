@@ -2,7 +2,6 @@
 Guidelime Vanilla
 
 Author: Grommey
-Version: 0.1
 
 Description:
 Settings manager

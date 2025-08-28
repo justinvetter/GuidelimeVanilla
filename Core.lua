@@ -2,7 +2,6 @@
 Guidelime Vanilla
 
 Author: Grommey
-Version: 0.1
 
 Description:
 Trying to port Guidelime Guides to Vanilla (1.12).

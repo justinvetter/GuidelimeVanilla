@@ -1,7 +1,6 @@
 --[[
 Guidelime Vanilla
 Author: Grommey
-Version: 0.2
 
 Description:
 Guide Writer rework.
@@ -234,6 +233,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
         end
         table.insert(displaySteps, stepFrameData)
     end
+    
+    -- Ensure the last step has a checkbox if the guide has clickToNext
+    if guide.clickToNext and guide.next and safe_tablelen(displaySteps) > 0 then
+        local lastStepIndex = safe_tablelen(displaySteps)
+        displaySteps[lastStepIndex].hasCheckbox = true
+    end
 
     local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     GLV_MainLoadedGuideCounter:SetText("("..currentStep.."/"..safe_tablelen(displaySteps)..")")
@@ -348,6 +353,52 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     stepState[origIdx] = checked
                 end
                 GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+                
+                -- Check if this is the last step and has a next guide to load
+                if checked and guide.next and guide.clickToNext and currentIndex == safe_tablelen(displaySteps) then
+                    -- This is the last step with a next guide, load it automatically
+                    local nextGuideName = guide.next
+                    local nextGuideGroup = nil
+                    local nextGuideId = nil
+                    
+                    -- Find the next guide in the loaded guides
+                    for groupName, groupGuides in pairs(GLV.loadedGuides) do
+                        if groupGuides then
+                            for guideId, guideData in pairs(groupGuides) do
+                                -- Try exact match first
+                                if guideData.name == nextGuideName then
+                                    nextGuideGroup = groupName
+                                    nextGuideId = guideId
+                                    break
+                                end
+                                -- Try partial match (for cases where the name might be slightly different)
+                                if string.find(guideData.name, nextGuideName) or string.find(nextGuideName, guideData.name) then
+                                    nextGuideGroup = groupName
+                                    nextGuideId = guideId
+                                    break
+                                end
+                            end
+                            if nextGuideGroup then break end
+                        end
+                    end
+                    
+                    -- Load the next guide if found
+                    if nextGuideGroup and nextGuideId then
+                        GLV:LoadGuide(nextGuideGroup, nextGuideId)
+                        -- Show a message to inform the user
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Guide suivant chargé : " .. nextGuideName)
+                    else
+                        -- Show error message if guide not found
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r Guide suivant non trouvé : " .. nextGuideName)
+                        -- Debug: show available guides for troubleshooting
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFAA00[GuideLime]|r Guides disponibles dans le groupe 'Sage Guide':")
+                        if GLV.loadedGuides["Sage Guide"] then
+                            for guideId, guideData in pairs(GLV.loadedGuides["Sage Guide"]) do
+                                DEFAULT_CHAT_FRAME:AddMessage("  - " .. guideData.name .. " (ID: " .. guideId .. ")")
+                            end
+                        end
+                    end
+                end
                 
                 -- Get current active step before potentially changing it
                 local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
