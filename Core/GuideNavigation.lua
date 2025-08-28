@@ -2,7 +2,6 @@
 Guidelime Vanilla - Navigation System
 
 Author: Grommey
-Version: 0.2
 
 Description:
 Autonomous navigation system with custom arrow display.

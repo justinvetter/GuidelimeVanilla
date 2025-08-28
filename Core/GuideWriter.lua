@@ -1,7 +1,6 @@
 --[[
 Guidelime Vanilla
 Author: Grommey
-Version: 0.2
 
 Description:
 Guide Writer rework.

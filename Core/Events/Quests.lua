@@ -2,7 +2,6 @@
 Guidelime Vanilla
 
 Author: Grommey
-Version: 0.1
 
 Description:
 Quest Tracker. Track when quests are accepted / completed
