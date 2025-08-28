@@ -114,7 +114,7 @@ function Parser:ParseExperienceRequirement(xpString)
     return nil
 end
 
--- Main guide parsing function
+-- Main guide parsing function that processes the entire guide text and extracts structured step data
 function Parser:parseGuide(guide, group)
     local parsedGuide = {}
     
@@ -123,6 +123,7 @@ function Parser:parseGuide(guide, group)
 
     local isFirstLine = true
 
+    local lineIndex = 0
     for line in string.gfind(guide .. "\n", "([^\n]*)\n") do
         local parsedLine = {}
 
@@ -182,10 +183,16 @@ function Parser:parseGuide(guide, group)
                         elseif tag == "LEARN" then
                             parsedLine.icon = "Interface\\GossipFrame\\TrainerGossipIcon"
                             if not parsedLine.learnTags then parsedLine.learnTags = {} end
-                            table.insert(parsedLine.learnTags, {
-                                spellId = tonumber(tagContent)
+                            local stepIndex = table.getn(parsedGuide.steps) + 1
+                            if not parsedLine.learnTags[stepIndex] then parsedLine.learnTags[stepIndex] = {} end
+                            
+                            local spellId, spellName = self:Learn(tagContent)
+                            table.insert(parsedLine.learnTags[stepIndex], {
+                                spellId = spellId,
+                                spellName = spellName
                             })
-                            return "|c" .. GLV.Colors[tag] .. self:Learn(tagContent) .. "|r"
+                            
+                            return "|c" .. GLV.Colors[tag] .. spellName .. "|r"
 
                         elseif tag == "COLLECT_ITEM" then
                             return "|c" .. GLV.Colors[tag] .. self:CollectItem(tagContent) .. "|r"
@@ -202,7 +209,6 @@ function Parser:parseGuide(guide, group)
                             parsedLine.questId = tonumber(questId)
                             parsedLine.hasCheckbox = true
                             
-                            -- Add step type and questId for tracking
                             if tag == "ACCEPT" then
                                 parsedLine.stepType = "ACCEPT"
                                 fullText = fullText .. "Accept "
@@ -216,7 +222,6 @@ function Parser:parseGuide(guide, group)
                                 fullText = fullText .. "Complete "
                             end
                             
-                            -- Store quest tag for multi-quest step handling
                             if not parsedLine.questTags then parsedLine.questTags = {} end
                             table.insert(parsedLine.questTags, {
                                 tag = tag,
@@ -224,7 +229,6 @@ function Parser:parseGuide(guide, group)
                                 title = questTitle
                             })
                             
-                            -- Add coordinates to the parsed line
                             if questCoords and table.getn(questCoords) > 0 then
                                 parsedLine.coords = questCoords
                             end
@@ -249,7 +253,6 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. tagContent .. "|r"
                             
                         elseif tag == "EXPERIENCE" then
-                            -- Parse different XP formats
                             local xpData = self:ParseExperienceRequirement(tagContent)
                             if xpData then
                                 parsedLine.hasCheckbox = true
@@ -280,6 +283,7 @@ function Parser:parseGuide(guide, group)
                 end
             end
         end
+        lineIndex = lineIndex + 1
     end
 
     return parsedGuide
@@ -288,9 +292,8 @@ end
 
 --[[ GUIDE METADATA FUNCTIONS ]]--
 
--- Extract guide name, levels and create unique ID
+-- Extract guide name, levels and create unique ID from the NAME tag content
 function Parser:getGuideName(content)
-    -- Try different patterns to extract level and name
     local lvlMin, lvlMax, guideName
     
     -- Pattern 1: "1-11 Dun Morogh" or "1-11 Dun Morogh"
@@ -309,7 +312,7 @@ function Parser:getGuideName(content)
     -- Create a unique guide identifier
     local guideId = "Unknown"
     if guideName and guideName ~= "" then
-        guideId = string.gsub(guideName, "%s+", "_") -- Replace spaces with underscores
+        guideId = string.gsub(guideName, "%s+", "_")
         if lvlMin and lvlMin ~= "" then
             guideId = guideId .. "_" .. lvlMin
         end
@@ -317,14 +320,13 @@ function Parser:getGuideName(content)
             guideId = guideId .. "_" .. lvlMax
         end
     else
-        -- Fallback: use group name if guide name is empty
         guideId = "Unknown_Guide"
     end
     
     return lvlMin, lvlMax, guideName, guideId
 end
 
--- Extract and format guide description
+-- Extract and format guide description from the DESCRIPTION tag content
 function Parser:getGuideDescription(content)
     guideDescription = string.gsub(content, "\\\\", "\n")
     return guideDescription
@@ -333,31 +335,30 @@ end
 
 --[[ CONTENT PROCESSING FUNCTIONS ]]--
 
--- Get quest information including coordinates
+-- Get quest information including coordinates from quest ID and part number
 function Parser:GetQuestInfo(content)
     local questID, _, questPart = string.match(content, "(%d+)(,?)(%d?)")
     local questName = GLV:GetQuestNameByID(questID)
     
-    -- Get quest coordinates from database using DBTools
-    -- Pass questPart to get coordinates for the specific part
     local coords = GLV:GetQuestAllCoords(questID, questPart)
     
     return questName, questID, coords
 end
 
--- Get spell name for learn tags
+-- Get spell name and ID for learn tags from the LEARN tag content
 function Parser:Learn(content)
-    -- SP XXXX
     local subcode, id = string.match(content, "(SP)%s(%d+)")
-    id = string.gsub(id, "%s+", "")
-    
-    if subcode == "SP" then
-         return GLV:getSpellName(id)
+    if subcode == "SP" and id then
+        id = string.gsub(id, "%s+", "")
+        local numericId = tonumber(id)
+        local spellName = GLV:getSpellName(id)
+        
+        return numericId, spellName
     end
-    return "Unknown Spell"
+    return nil, "Unknown Spell"
 end
 
--- Get item name for collect item tags
+-- Get item name for collect item tags from the COLLECT_ITEM tag content
 function Parser:CollectItem(content)
     local itemID, itemCount = string.match(content, "(%d+)(,?)(%d?)")
     local itemName = GLV:GetItemNameById(itemID)
@@ -367,7 +368,7 @@ end
 
 --[[ FILTERING AND REPLACEMENT FUNCTIONS ]]--
 
--- Filter lines based on player class and race
+-- Filter lines based on player class and race to show only applicable content
 function Parser:filterClassRace(line)
     local playerClass = GLV.Settings:GetOption({"CharInfo", "Class"}) or ""
     local playerRace = GLV.Settings:GetOption({"CharInfo", "Race"}) or ""
@@ -400,7 +401,7 @@ function Parser:filterClassRace(line)
     return true
 end
 
--- Replace class/race tags with appropriate text
+-- Replace class/race tags with appropriate text based on current player
 function Parser:replaceClassRace(content)
     local playerClass = string.lower(UnitClass("player"))
     local playerRace = string.lower(UnitRace("player"))

@@ -13,26 +13,25 @@ local GLV = LibStub("GuidelimeVanilla")
 local CharacterTracker = {}
 GLV.CharacterTracker = CharacterTracker
 
--- Initialize character tracking and register event handlers
+-- Initialize character tracking and register event handlers for XP, level, and spell learning events
 function CharacterTracker:Init()
     if GLV.Ace then
         GLV.Ace:RegisterEvent("PLAYER_XP_UPDATE", function() self:OnPlayerXPUpdate() end)
         GLV.Ace:RegisterEvent("PLAYER_LEVEL_UP", function() self:OnPlayerXPUpdate() end)
-        -- CORRECTION : Utiliser les bons événements pour WoW 1.12
-        GLV.Ace:RegisterEvent("SPELLS_CHANGED", function() self:OnSpellLearned() end)
-        GLV.Ace:RegisterEvent("SPELL_UPDATE_COOLDOWN", function() self:OnSpellLearned() end)
+
+        GLV.Ace:RegisterEvent("LEARNED_SPELL_IN_TAB", function() self:OnSpellLearned() end)
     end
     
     self.previousPlayerLevel = UnitLevel("player")
     self.previousPlayerXP = UnitXP("player")
-    -- CORRECTION : Garder une trace des sorts connus pour détecter les changements
+
     self.knownSpells = self:BuildKnownSpellsList()
 end
 
 
 --[[ EVENTS ]]--
 
--- Handle player XP and level updates, check XP requirements
+-- Handle player XP and level updates, check XP requirements and manage timers
 function CharacterTracker:OnPlayerXPUpdate()
     local currentLevel = UnitLevel("player")
     local currentXP = UnitXP("player")
@@ -49,6 +48,7 @@ function CharacterTracker:OnPlayerXPUpdate()
     end
 end
 
+-- Build a list of all currently known spells from the spell book
 function CharacterTracker:BuildKnownSpellsList()
     local spells = {}
     local i = 1
@@ -57,7 +57,6 @@ function CharacterTracker:BuildKnownSpellsList()
         if not spellName then
             break
         end
-        -- Stocker le nom complet avec le rang si disponible
         local fullSpellName = spellRank and (spellName .. "(" .. spellRank .. ")") or spellName
         spells[spellName] = true
         spells[fullSpellName] = true
@@ -66,115 +65,98 @@ function CharacterTracker:BuildKnownSpellsList()
     return spells
 end
 
+-- Handle spell learning events, check if learned spells complete guide steps
 function CharacterTracker:OnSpellLearned()
     if not GLV.CurrentDisplaySteps then
         return false
     end
 
-    -- Construire la liste actuelle des sorts
     local currentSpells = self:BuildKnownSpellsList()
     
-    -- Vérifier s'il y a de nouveaux sorts
     local hasNewSpells = false
     for spellName, _ in pairs(currentSpells) do
         if not self.knownSpells[spellName] then
             hasNewSpells = true
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r New spell detected: " .. spellName)
             break
         end
     end
     
-    -- Mettre à jour la liste des sorts connus
     self.knownSpells = currentSpells
-    
-    -- Si aucun nouveau sort, pas besoin de continuer
-    if not hasNewSpells then
-        return false
-    end
 
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local diCount = GLV.CurrentDisplayStepsCount or 0
     local diToOrig = GLV.CurrentDisplayToOriginal or {}
     local stepsCompleted = false
-    
+       
     for di = 1, diCount do
         local step = GLV.CurrentDisplaySteps[di]
         local origIdx = diToOrig[di]
-        
+
         if step and origIdx and not stepState[origIdx] then
-            if step.learnTags and table.getn(step.learnTags) > 0 then
-                local allSpellsLearned = true
-                
-                for _, learnTag in ipairs(step.learnTags) do
-                    local spellId = learnTag.spellId
-                    local spellName = GLV:getSpellName(spellId)
-                    local spellFound = false
-                    
-                    if spellName then
-                        -- CORRECTION : Vérification plus robuste
-                        -- 1. Vérification directe du nom
-                        if currentSpells[spellName] then
-                            spellFound = true
-                        else
-                            -- 2. Vérification avec comparaison insensible à la casse
-                            local lowerSpellName = string.lower(spellName)
-                            for knownSpell, _ in pairs(currentSpells) do
-                                if string.lower(knownSpell) == lowerSpellName then
+            
+            if step.lines then
+
+                for _, line in ipairs(step.lines) do
+            
+                    if line.learnTags and line.learnTags[origIdx] then
+                        
+                        local allSpellsLearned = true
+                        
+                        for _, learnTag in ipairs(line.learnTags[origIdx]) do
+                            local spellId = learnTag.spellId
+                            local spellName = learnTag.spellName
+                            local spellFound = false
+                                                    
+                            if spellName then
+                                if currentSpells[spellName] then
                                     spellFound = true
-                                    break
-                                end
-                            end
-                            
-                            -- 3. Si toujours pas trouvé, chercher par correspondance partielle
-                            if not spellFound then
-                                for knownSpell, _ in pairs(currentSpells) do
-                                    -- Enlever les parenthèses et les rangs pour la comparaison
-                                    local cleanKnownSpell = string.gsub(knownSpell, "%b()", "")
-                                    cleanKnownSpell = string.gsub(cleanKnownSpell, "%s+$", "") -- enlever espaces finaux
+                                else
+                                    local lowerSpellName = string.lower(spellName)
+                                    for knownSpell, _ in pairs(currentSpells) do
+                                        if string.lower(knownSpell) == lowerSpellName then
+                                            spellFound = true
+                                            break
+                                        end
+                                    end
                                     
-                                    if string.lower(cleanKnownSpell) == lowerSpellName then
-                                        spellFound = true
-                                        break
+                                    if not spellFound then
+                                        for knownSpell, _ in pairs(currentSpells) do
+                                            local cleanKnownSpell = string.gsub(knownSpell, "%b()", "")
+                                            cleanKnownSpell = string.gsub(cleanKnownSpell, "%s+$", "")
+                                            
+                                            if string.lower(cleanKnownSpell) == lowerSpellName then
+                                                spellFound = true
+                                                break
+                                            end
+                                        end
                                     end
                                 end
+                                
+                            end
+                            
+                            if not spellFound then
+                                allSpellsLearned = false
+                                break
                             end
                         end
                         
-                        if GLV.Debug and spellFound then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Spell found: " .. spellName)
-                        elseif GLV.Debug then
-                            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Spell NOT found: " .. spellName)
+                        if allSpellsLearned then
+                            stepState[origIdx] = true
+                            GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+                            stepsCompleted = true
                         end
-                    else
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Warning: Could not get spell name for ID " .. tostring(spellId))
-                    end
-                    
-                    if not spellFound then
-                        allSpellsLearned = false
-                        break
-                    end
-                end
-                
-                if allSpellsLearned then
-                    stepState[origIdx] = true
-                    GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-                    stepsCompleted = true
-                    
-                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Step completed: All required spells learned!")
+                    end                        
                 end
             end
         end
     end
     
-    -- CORRECTION : Mettre à jour la navigation seulement si des étapes ont été complétées
     if stepsCompleted then
-        -- Update quest tracker navigation
         if GLV.QuestTracker then
             GLV.QuestTracker:UpdateStepNavigation(true, false)
         end
         
-        -- Update guide navigation waypoint for the new active step
         if GLV.GuideNavigation then
             local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
             if currentStep > 0 and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
@@ -185,26 +167,6 @@ function CharacterTracker:OnSpellLearned()
     end
     
     return stepsCompleted
-end
-
--- NOUVELLE FONCTION : Vérifier manuellement les sorts appris (pour débogage)
-function CharacterTracker:CheckSpellLearning()
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Manual spell check triggered")
-    return self:OnSpellLearned()
-end
-
--- NOUVELLE FONCTION : Debug des sorts connus
-function CharacterTracker:DebugKnownSpells()
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime Debug]|r Known spells:")
-    local count = 0
-    for spellName, _ in pairs(self.knownSpells or {}) do
-        DEFAULT_CHAT_FRAME:AddMessage("  - " .. spellName)
-        count = count + 1
-        if count > 20 then -- Limiter l'affichage
-            DEFAULT_CHAT_FRAME:AddMessage("  ... and " .. (table.getn(self.knownSpells) - count) .. " more")
-            break
-        end
-    end
 end
 
 
@@ -226,7 +188,7 @@ function CharacterTracker:CheckForXPChanges()
     end
 end
 
--- Check if player meets XP requirements for current guide steps
+-- Check if player meets XP requirements for current guide steps and mark completed ones
 function CharacterTracker:CheckExperienceRequirements()
     if not GLV.CurrentDisplaySteps then
         return false

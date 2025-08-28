@@ -38,12 +38,12 @@ local CONFIG = {
 
 --[[ UI CREATION FUNCTIONS ]]--
 
--- Create and set the guide title
+-- Create and set the guide title with level range information
 local function createTitle(guide)
     GLV_MainLoadedGuideTitle:SetText(guide.name .. " (" .. guide.minLevel .. "-" .. guide.maxLevel .. ")")
 end
 
--- Wrap text to fit within specified width
+-- Wrap text to fit within specified width and return wrapped text with line count and height
 local function wrapText(inputText, maxWidth, font)
     local wrappedText = ""
     local lineCount = 0
@@ -84,7 +84,7 @@ local function wrapText(inputText, maxWidth, font)
     return wrappedText, lineCount, textHeight
 end
 
--- Create checkbox for step completion
+-- Create checkbox for step completion with proper textures and positioning
 local function createCheckbox(frame)
     local check = CreateFrame("CheckButton", frame:GetName().."Check", frame)
     check:SetWidth(CONFIG.checkboxSize)
@@ -140,7 +140,7 @@ function GLV:RefreshGuide()
     self:CreateGuideSteps(scrollChild, guide, guide.id)
 end
 
--- Create and display all guide steps in the UI
+-- Create and display all guide steps in the UI with proper grouping and layout
 function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     if not scrollChild or not scrollChild.GetNumChildren then return end
     if not guide or not guide.steps then return end
@@ -156,7 +156,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
 
     local lastLine = nil
     local totalHeight = 0
-    -- Use the passed guideId instead of guide.id
     local currentGuideId = guideId or guide.id or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local displaySteps = {}
@@ -168,7 +167,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     -- regroup steps: OC + main line
     local i=1
     while i <= safe_tablelen(guide.steps) do
-        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false, questTags={}}
+        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false, questTags={}, learnTags={}}
         -- collect [OC] lines
         while i <= safe_tablelen(guide.steps) and guide.steps[i] and (guide.steps[i].emptyLine or guide.steps[i].complete_with_next) do
             table.insert(stepFrameData.lines, {
@@ -180,26 +179,36 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 coords = guide.steps[i].coords,
                 stepType = guide.steps[i].stepType,
                 questTags = guide.steps[i].questTags,
-                experienceRequirement = guide.steps[i].experienceRequirement
+                experienceRequirement = guide.steps[i].experienceRequirement,
+                learnTags = guide.steps[i].learnTags,
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
             end
-            -- Collect questTags from this OC line
             if guide.steps[i].questTags then
                 for _, tag in ipairs(guide.steps[i].questTags) do
                     table.insert(stepFrameData.questTags, tag)
                 end
             end
             
-            -- Check if this OC line has XP requirements (for checkbox)
             if guide.steps[i].experienceRequirement then
                 stepFrameData.hasCheckbox = true
             end
             i=i+1
         end
         if i <= safe_tablelen(guide.steps) and guide.steps[i] then
-            table.insert(stepFrameData.lines, {text=guide.steps[i].text, isOC=false, icon=guide.steps[i].icon, useItemId=guide.steps[i].useItemId, questId=guide.steps[i].questId, coords=guide.steps[i].coords, stepType=guide.steps[i].stepType, questTags=guide.steps[i].questTags, experienceRequirement=guide.steps[i].experienceRequirement})
+            table.insert(stepFrameData.lines, {
+                text = guide.steps[i].text,
+                isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
+                icon = guide.steps[i].icon,
+                useItemId = guide.steps[i].useItemId,
+                questId = guide.steps[i].questId,
+                coords = guide.steps[i].coords,
+                stepType = guide.steps[i].stepType,
+                questTags = guide.steps[i].questTags,
+                experienceRequirement = guide.steps[i].experienceRequirement,
+                learnTags = guide.steps[i].learnTags,
+            })
 
             stepFrameData.hasCheckbox = true
             
@@ -226,11 +235,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
         table.insert(displaySteps, stepFrameData)
     end
 
-    -- Get the current step for this specific guide
     local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     GLV_MainLoadedGuideCounter:SetText("("..currentStep.."/"..safe_tablelen(displaySteps)..")")
 
-    -- publish mapping and display metadata for other modules
     GLV.CurrentStepIndexMap = originalIndexToDisplayIndex
     GLV.CurrentDisplayStepsCount = safe_tablelen(displaySteps)
     GLV.CurrentDisplaySteps = displaySteps
@@ -240,12 +247,10 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     end
     GLV.CurrentDisplayToOriginal = displayIndexToOriginalIndex
 
-    -- create frames
     for idx, step in ipairs(displaySteps) do
         local frame = CreateFrame("Frame", scrollChild:GetName().."Step"..idx, scrollChild)
         frame:SetWidth(CONFIG.totalWidth)
         frame:SetBackdrop(CONFIG.backdrop)
-        -- Keep frame mouse enabled so children can receive events normally
         if frame.EnableMouse then frame:EnableMouse(true) end
 
         local color = isEven(idx) and CONFIG.colors.even or CONFIG.colors.odd
@@ -255,7 +260,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
         local frameHeight = 0
         local lineStrings = {}
 
-        -- create lines inside frame
         for li, line in ipairs(step.lines) do
             local hasIcon = type(line.icon) == "string" and line.icon ~= "" and line.icon ~= nil
             local reservedIconWidth = CONFIG.iconWidth + 4
@@ -268,13 +272,11 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
             textFrame:SetJustifyH("LEFT")
             textFrame:SetJustifyV("TOP")
             textFrame:SetWidth(availableWidth)
-            -- stable text height using a fixed font line height multiplier for consistency
             local usedHeight = (lineCount * CONFIG.fontLineHeight)
             textFrame:SetHeight(usedHeight)
 
             local offsetX = reservedIconWidth
 
-            -- icon for this line (only if line.icon is provided)
             if hasIcon then
                 -- Create the clickable icon at scrollChild level to avoid any parent capturing issues
                 local iconButton = CreateFrame("Button", nil, scrollChild)
@@ -302,12 +304,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 -- Optional: click action provided by parser
                 if line.useItemId then
                     local itemIdForClick = line.useItemId
+                    -- Handle item usage when icon is clicked, calls useItemById with the stored item ID
                     local function handleUse()
                         useItemById(itemIdForClick)
                     end
                     iconButton:SetScript("OnClick", handleUse)
                     iconButton:SetScript("OnMouseUp", handleUse)
-                    -- Improve UX: highlight and slightly larger hitbox
                     if iconButton.SetHighlightTexture then
                         iconButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
                     end
@@ -450,11 +452,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     end
 
     scrollChild:SetHeight(math.max(1, totalHeight))
-    -- Use the saved CurrentStep for this guide, or calculate first unchecked if none saved
     local totalSteps = table.getn(displaySteps)
     local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     
-    -- If no saved step, find first unchecked
     if activeStep == 0 then
         for i2 = 1, totalSteps do
             if displaySteps[i2] and displaySteps[i2].hasCheckbox then
@@ -465,7 +465,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 end
             end
         end
-        -- Save the calculated step
         if activeStep > 0 then
             GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
         end
