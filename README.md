@@ -2,7 +2,7 @@
 
 # GuideLime Vanilla
 
-## ⚠️ **WORK IN PROGRESS** ⚠️
+## ⚠️ **$\color{rgb(255,0,0)}{\textsf{WORK IN PROGRESS}}$** ⚠️
 
 </div>
 
@@ -217,3 +217,4 @@ For support, bug reports, or feature requests:
 ---
 
 **Happy questing! 🎯✨**
+
