@@ -1,5 +1,11 @@
 # GuideLime Vanilla
 
+<div align="center">
+
+# <span style="color: red; font-size: 1.5em;">⚠️ WORK IN PROGRESS ⚠️</span>
+
+</div>
+
 A comprehensive World of Warcraft Classic (1.12) addon that provides an enhanced guide system with automatic quest tracking, autonomous navigation system, and smart UI management. **Now includes Sage 1-60 Alliance leveling guides built-in!**
 
 ## 🖼️ Screenshots
