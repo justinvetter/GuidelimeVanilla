@@ -230,7 +230,12 @@ function CharacterTracker:CheckExperienceRequirements()
                             requirementMet = (xpNeeded <= req.xpMinus)
 
                         end
-                        
+
+                    else req.type == "level_plus" then
+                        if playerLevel >= req.targetLevel then
+                            requirementMet = (playerXP >= req.xpPlus)
+                        end
+
                     elseif req.type == "level_percent" then
                         if playerLevel > req.targetLevel then
                             requirementMet = true
