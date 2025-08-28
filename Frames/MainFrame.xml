@@ -32,6 +32,19 @@
             </OnDragStart>
             <OnDragStop>
                 this:StopMovingOrSizing();
+                if GLV and GLV.Settings then
+                    local left = this:GetLeft()
+                    local top = this:GetTop()
+                    
+                    if left and top then
+                        -- Calcul des coordonnées relatives au coin supérieur gauche
+                        local screenHeight = GetScreenHeight()
+                        local relativeY = top - screenHeight
+                        
+                        GLV.Settings:SetOption(left, {"UI", "PositionX"})
+                        GLV.Settings:SetOption(relativeY, {"UI", "PositionY"})
+                    end
+                end
             </OnDragStop>
         </Scripts>        
 
@@ -69,6 +82,23 @@
                 <PushedTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Down"/>
                 <Scripts>
                     <OnClick>GLV_NextPrevStep(true)</OnClick>
+                </Scripts>
+            </Button>
+
+            <Button name="$parentLock" inherits="UIPanelButtonTemplate">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT">
+                        <Offset x="10" y="-8"/>
+                    </Anchor>
+                </Anchors>
+                <NormalTexture file="Interface\AddOns\GuideLimeVanilla\Textures\closed_lock"/>
+                <PushedTexture file="Interface\AddOns\GuideLimeVanilla\Textures\closed_lock_down"/>
+                <Scripts>
+                    <OnLoad>GLV_MainLock_OnLoad()</OnLoad>
+                    <OnClick>GLV_MainLock_OnClick()</OnClick>
                 </Scripts>
             </Button>
 
