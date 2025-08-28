@@ -1,8 +1,8 @@
-# GuideLime Vanilla
-
 <div align="center">
 
-# <span style="color: red; font-size: 1.5em;">⚠️ WORK IN PROGRESS ⚠️</span>
+# GuideLime Vanilla
+
+## ⚠️ **WORK IN PROGRESS** ⚠️
 
 </div>
 
