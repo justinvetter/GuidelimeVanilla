@@ -159,7 +159,7 @@ function Parser:parseGuide(guide, group)
                             parsedGuide.next = tagContent
                             parsedGuide.hasCheckbox = true
                             parsedGuide.clickToNext = true
-                            return "-"
+                            return ""
 
                         elseif tag == "OPTIONAL" then
                             parsedLine.optional = true
@@ -243,7 +243,7 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. "Repair " .. "|r"
 
                         elseif tag == "VENDOR" then
-                            parsedLine.icon = "Interface\\GossipFrame\\VendorGossipIcon"
+                            --parsedLine.icon = "Interface\\GossipFrame\\VendorGossipIcon"
                             return "|c" .. GLV.Colors[tag] .. "Vendor " .. "|r"
 
                         elseif tag == "HEARTHSTONE" then
