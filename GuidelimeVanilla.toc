@@ -23,6 +23,7 @@ Core\GuideWriter.lua
 
 Core\Events\Quests.lua
 Core\Events\Character.lua
+Core\Events\Taxi.lua
 Core\Events\Gossip.lua
 
 Guides\guides.xml

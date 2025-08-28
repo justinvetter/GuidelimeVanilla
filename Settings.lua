@@ -38,6 +38,9 @@ local defaults = {
             Accepted = {},
             Completed = {},
             AutoObjectiveTracking = true,
+        },
+        TaxiTracker = {
+            KnownTaxiNodes = {},
         }
     }
 }

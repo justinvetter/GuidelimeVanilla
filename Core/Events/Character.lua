@@ -4,7 +4,7 @@ Guidelime Vanilla
 Author: Grommey
 
 Description:
-Character events tracker (XP, Level, etc.)
+Character events tracker (XP, Level, Spells, ..)
 ]]--
 
 local GLV = LibStub("GuidelimeVanilla")
