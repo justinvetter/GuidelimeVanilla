@@ -85,6 +85,17 @@ function Parser:ParseExperienceRequirement(xpString)
             text = textPart
         }
     end
+
+    -- [XP3+100] -> Need level 3 + 100 XP
+    local levelPlus, xpPlus = string.match(numericPart, "^(%d+)%+(%d+)$")
+    if levelPlus and xpPlus then
+        return {
+            targetLevel = tonumber(levelPlus),
+            xpPlus = tonumber(xpPlus),
+            type = "level_plus",
+            text = textPart
+        }
+    end
     
     -- [XP3.5] -> Level 3 with 50% XP or [XP2.925] -> Level 2 with 92.5% XP
     local levelFloat = tonumber(numericPart)
