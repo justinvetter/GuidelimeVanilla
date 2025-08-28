@@ -198,7 +198,11 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. self:CollectItem(tagContent) .. "|r"
 
                         elseif tag == "USE_ITEM" then
-                            return "|c" .. GLV.Colors[tag] .. GLV:GetItemNameById(tagContent) .. "|r"
+                            local itemName = GLV:GetItemNameById(tagContent)
+                            local itemTexture = self:GetItemTexture(tagContent)
+                            parsedLine.icon = itemTexture
+                            parsedLine.useItemId = tagContent 
+                            return "|c" .. GLV.Colors[tag] .. itemName .. "|r"
 
                         elseif self:getSuperTag(tag) == "QUEST" then
                             local fullText = ""
@@ -328,7 +332,7 @@ end
 
 -- Extract and format guide description from the DESCRIPTION tag content
 function Parser:getGuideDescription(content)
-    guideDescription = string.gsub(content, "\\\\", "\n")
+    local guideDescription = string.gsub(content, "\\\\", "\n")
     return guideDescription
 end
 
@@ -365,6 +369,18 @@ function Parser:CollectItem(content)
     return itemName
 end
 
+function Parser:GetItemTexture(content)
+    local itemID = tonumber(content)
+    if not itemID then
+        return ""
+    end
+    
+    local _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemID)
+    if not itemTexture then
+        return ""
+    end
+    return itemTexture
+end
 
 --[[ FILTERING AND REPLACEMENT FUNCTIONS ]]--
 
