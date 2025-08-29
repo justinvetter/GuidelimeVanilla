@@ -59,7 +59,7 @@ function Parser:ParseExperienceRequirement(xpString)
     
     -- Extract only the numeric part at the beginning of the string
     -- [XP3] or [XP4-290 Grind text] or [XP3.5 Some text]
-    local numericPart, textPart = string.match(xpString, "^([%d%.%-]+)(.*)")
+    local numericPart, textPart = string.match(xpString, "^([%d%.%-%+]+)(.*)")
     if not numericPart then
         return nil
     end
