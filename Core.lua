@@ -73,23 +73,18 @@ function addon:OnEnable()
     self:RegisterEvent("VARIABLES_LOADED", function() self:OnVariablesLoaded() end)
     self:RegisterEvent("PLAYER_LOGIN", function() self:OnPlayerLogin() end)
     
-    if GLV.QuestTracker then
-        GLV.QuestTracker:Init()
-        GLV.CharacterTracker:Init()
-    end
-    
-    if GLV.GossipTracker then
-        GLV.GossipTracker:Init()
-    end
+    -- Add Events Loading
+    GLV.QuestTracker:Init()
+    GLV.CharacterTracker:Init()
+    GLV.TaxiTracker:Init()
+    GLV.GossipTracker:Init()
     
     -- Initialize Guide Navigation integration AFTER the guide is loaded
-    if GLV.GuideNavigation then
-        self:ScheduleEvent(function()
-            if GLV.GuideNavigation then
-                GLV.GuideNavigation:Init()
-            end
-        end, 2.0)
-    end
+    self:ScheduleEvent(function()
+        if GLV.GuideNavigation then
+            GLV.GuideNavigation:Init()
+        end
+    end, 2.0)
 end
 
 
