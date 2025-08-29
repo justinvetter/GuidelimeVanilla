@@ -24,7 +24,6 @@ local codes = {
     QT  = "TURNIN",
     QS  = "SKIP",
     G   = "GOTO",
-    L   = "LOCATION",
     XP  = "EXPERIENCE",
     CI  = "COLLECT_ITEM",
     TAR = "TARGET_ID",
@@ -36,6 +35,7 @@ local codes = {
     H   = "HEARTHSTONE",
     S   = "BIND_HEARTHSTONE",
     UI  = "USE_ITEM",
+    P   = "GET_FLIGHT_PATH",
 }
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
@@ -275,6 +275,15 @@ function Parser:parseGuide(guide, group)
                                 return "|c" .. GLV.Colors[tag] .. xpData.text .. "|r"
                             end
 
+                        elseif tag == "GET_FLIGHT_PATH" then
+                            local flightPathName = self:GetFlightPathInfo(tagContent)
+                            parsedLine.stepType = "GET_FP"
+                            parsedLine.hasCheckbox = true
+                            parsedLine.icon = "Interface\\Icons\\Ability_Mount_GriffonMount"
+                            
+                            local fullText = "|c" .. GLV.Colors[tag] .. flightPathName .. "|r"
+                            return fullText
+
                         end
 
                         return "[" .. code .. "]"
@@ -390,6 +399,15 @@ function Parser:GetItemTexture(content)
         return ""
     end
     return itemTexture
+end
+
+function Parser:GetFlightPathInfo(content)
+    local flightPathName = string.gsub(content, "^%s*(.-)%s*$", "%1")
+    if flightPathName == "" then
+        flightPathName = "Unknown Flight Path"
+    end
+    
+    return flightPathName
 end
 
 --[[ FILTERING AND REPLACEMENT FUNCTIONS ]]--
