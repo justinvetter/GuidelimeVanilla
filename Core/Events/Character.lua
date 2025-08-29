@@ -231,7 +231,7 @@ function CharacterTracker:CheckExperienceRequirements()
 
                         end
 
-                    else req.type == "level_plus" then
+                    elseif req.type == "level_plus" then
                         if playerLevel >= req.targetLevel then
                             requirementMet = (playerXP >= req.xpPlus)
                         end
