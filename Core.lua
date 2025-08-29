@@ -76,7 +76,7 @@ function addon:OnEnable()
     -- Add Events Loading
     GLV.QuestTracker:Init()
     GLV.CharacterTracker:Init()
-    GLV.TaxiTracker:Init()
+    --GLV.TaxiTracker:Init()
     GLV.GossipTracker:Init()
     
     -- Initialize Guide Navigation integration AFTER the guide is loaded
