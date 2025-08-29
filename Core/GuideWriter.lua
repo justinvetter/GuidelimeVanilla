@@ -180,6 +180,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 questTags = guide.steps[i].questTags,
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
+                destination = guide.steps[i].destination,
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
@@ -207,6 +208,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 questTags = guide.steps[i].questTags,
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
+                destination = guide.steps[i].destination,
             })
 
             stepFrameData.hasCheckbox = true

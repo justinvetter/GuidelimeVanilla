@@ -280,6 +280,7 @@ function Parser:parseGuide(guide, group)
                             parsedLine.stepType = "GET_FP"
                             parsedLine.hasCheckbox = true
                             parsedLine.icon = "Interface\\Icons\\Ability_Mount_GriffonMount"
+                            parsedLine.destination = flightPathName
                             
                             local fullText = "|c" .. GLV.Colors[tag] .. flightPathName .. "|r"
                             return fullText
