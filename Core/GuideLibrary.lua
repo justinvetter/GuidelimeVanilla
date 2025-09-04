@@ -91,7 +91,28 @@ function GLV:PopulateDropdown(group)
                 groupInfo.disabled = 1
                 UIDropDownMenu_AddButton(groupInfo)
                 
+                -- Create a sorted list of guides by minLevel then by name
+                local sortedGuides = {}
                 for guideId, guideData in pairs(guides) do
+                    table.insert(sortedGuides, {id = guideId, data = guideData})
+                end
+                
+                -- Sort by minLevel first, then by name
+                table.sort(sortedGuides, function(a, b)
+                    local aMinLevel = tonumber(a.data.minLevel) or 0
+                    local bMinLevel = tonumber(b.data.minLevel) or 0
+                    
+                    if aMinLevel ~= bMinLevel then
+                        return aMinLevel < bMinLevel
+                    else
+                        return (a.data.name or "") < (b.data.name or "")
+                    end
+                end)
+                
+                -- Add sorted guides to dropdown
+                for _, guideEntry in pairs(sortedGuides) do
+                    local guideId = guideEntry.id
+                    local guideData = guideEntry.data
                     local info = {}
                     local displayName = guideData.name
                     if guideData.minLevel and guideData.maxLevel then
@@ -255,6 +276,39 @@ function GLV:LoadGuide(group, guideId)
             UIDropDownMenu_SetSelectedValue(dropdown, guideId)
             UIDropDownMenu_SetText(displayName, dropdown)
         end
+    end
+    
+    -- Force highlighting refresh after guide loading to ensure proper display
+    if GLV.QuestTracker and GLV.QuestTracker.RefreshHighlighting then
+        GLV.Ace:ScheduleEvent(function()
+            GLV.QuestTracker:RefreshHighlighting()
+        end, 0.1)
+    end
+    
+    -- Also schedule a scroll to current step after everything is loaded
+    local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
+    if currentStep > 0 then
+        GLV.Ace:ScheduleEvent(function()
+            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
+            local scrollFrame = _G["GLV_MainScrollFrame"]
+            if scrollChild and scrollFrame then
+                -- Find the current step frame
+                local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. currentStep]
+                if stepFrame then
+                    local frameTop = stepFrame:GetTop()
+                    local frameHeight = stepFrame:GetHeight()
+                    local scrollChildTop = scrollChild:GetTop()
+                    
+                    if frameTop and frameHeight and scrollChildTop then
+                        local relativePosition = scrollChildTop - frameTop
+                        local newScrollPosition = relativePosition - 50 -- Add some padding
+                        if newScrollPosition < 0 then newScrollPosition = 0 end
+                        
+                        scrollFrame:SetVerticalScroll(newScrollPosition)
+                    end
+                end
+            end
+        end, 0.2)
     end
 end
 

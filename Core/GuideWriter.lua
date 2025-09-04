@@ -261,29 +261,61 @@ local function updateStepColors(scrollChild, guideId, displaySteps, activeStepIn
     end
 end
 
+-- Parse guide name content using the same logic as the parser
+local function parseGuideNameContent(content)
+    local lvlMin, lvlMax, guideName
+    
+    -- Pattern 1: "1-11 Dun Morogh" or "1-11 Dun Morogh"
+    lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s*%-%s*(%d+)%s*(.+)")
+    
+    -- Pattern 2: "1 11 Dun Morogh" (without dash)
+    if not lvlMin then
+        lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s+(%d+)%s+(.+)")
+    end
+    
+    -- Pattern 3: Just try to extract any numbers and text
+    if not lvlMin then
+        lvlMin, lvlMax, guideName = string.match(content, "(%d+)%s*[%-%s]%s*(%d+)%s*(.+)")
+    end
+    
+    return lvlMin, lvlMax, guideName
+end
+
 -- Handle next guide loading
 local function handleNextGuideLoad(guide, currentIndex, displaySteps)
     if guide.next and guide.clickToNext and currentIndex == safe_tablelen(displaySteps) then
-        local nextGuideName = guide.next
-        local nextGuideGroup, nextGuideId = nil, nil
+        local nextGuideContent = guide.next
         
-        for groupName, groupGuides in pairs(GLV.loadedGuides) do
-            if groupGuides then
-                for guideId, guideData in pairs(groupGuides) do
-                    if guideData.name == nextGuideName or 
-                       string.find(guideData.name, nextGuideName) or 
-                       string.find(nextGuideName, guideData.name) then
-                        nextGuideGroup = groupName
-                        nextGuideId = guideId
-                        break
-                    end
-                end
-                if nextGuideGroup then break end
+        -- Parse the next guide content using the same logic as the parser
+        -- Format: "XX-XX Name" where XX-XX are levels and Name is the guide name
+        local nextMinLevel, nextMaxLevel, nextGuideName = parseGuideNameContent(nextGuideContent)
+        
+        if not nextGuideName then
+            return
+        end
+        
+        -- Generate the expected guide ID using the same logic as the parser
+        local expectedGuideId = "Unknown"
+        if nextGuideName and nextGuideName ~= "" then
+            expectedGuideId = string.gsub(nextGuideName, "%s+", "_")
+            if nextMinLevel and nextMinLevel ~= "" then
+                expectedGuideId = expectedGuideId .. "_" .. nextMinLevel
+            end
+            if nextMaxLevel and nextMaxLevel ~= "" then
+                expectedGuideId = expectedGuideId .. "_" .. nextMaxLevel
             end
         end
         
-        if nextGuideGroup and nextGuideId then
-            GLV:LoadGuide(nextGuideGroup, nextGuideId)
+        -- Look for exact match using the guide ID
+        for groupName, groupGuides in pairs(GLV.loadedGuides) do
+            if groupGuides then
+                for guideId, guideData in pairs(groupGuides) do
+                    if guideId == expectedGuideId then
+                        GLV:LoadGuide(groupName, guideId)
+                        return
+                    end
+                end
+            end
         end
     end
 end
