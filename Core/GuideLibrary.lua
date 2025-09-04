@@ -24,9 +24,7 @@ function GLV:RegisterGuide(guideText, group)
         return
     end
     
-    local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
-    if not scrollChild then
-    end
+    -- Note: scrollChild is checked later in the function
 
     if not self.loadedGuides[group] then
         self.loadedGuides[group] = {}
@@ -261,26 +259,4 @@ function GLV:LoadGuide(group, guideId)
 end
 
 
---[[ DEBUG FUNCTIONS ]]--
-
--- Debug command to display loaded guides information
-function GLV:DebugGuides()
-    if not self.loadedGuides then
-        return
-    end
-    
-    local totalGroups = 0
-    local totalGuides = 0
-    
-    for group, guides in pairs(self.loadedGuides) do
-        totalGroups = totalGroups + 1
-        
-        if guides then
-            local groupGuideCount = 0
-            for guideId, guideData in pairs(guides) do
-                groupGuideCount = groupGuideCount + 1
-                totalGuides = totalGuides + 1
-            end
-        end
-    end
-end
+-- Debug functions removed - were unused

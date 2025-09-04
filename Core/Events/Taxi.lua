@@ -26,11 +26,15 @@ function TaxiTracker:Init()
     self.knownTaxiNodes = knownTaxiNodes
     
     -- Debug: afficher les points de vol connus au chargement
-    GLV.Ace:Print("TaxiTracker", "Loaded " .. self:CountKnownNodes() .. " known taxi nodes")
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Loaded " .. self:CountKnownNodes() .. " known taxi nodes")
+    end
 end
 
 function TaxiTracker:OnTaxiMapOpened()
-    GLV.Ace:Print("TaxiTracker", "Taxi map opened")
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Taxi map opened")
+    end
     self:CheckForNewFlightPaths()
 end
 
@@ -39,7 +43,9 @@ function TaxiTracker:CheckForNewFlightPaths()
     local discoveredNew = false
     
     local numNodes = NumTaxiNodes()
-    GLV.Ace:Print("TaxiTracker", "Scanning " .. numNodes .. " taxi nodes")
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Scanning " .. numNodes .. " taxi nodes")
+    end
     
     for i = 1, numNodes do
         local name = TaxiNodeName(i)
@@ -50,7 +56,9 @@ function TaxiTracker:CheckForNewFlightPaths()
             
             -- Vérifier si c'est un nouveau nœud
             if not self.knownTaxiNodes[name] then
-                GLV.Ace:Print("TaxiTracker", "New flight path discovered: " .. name)
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r New flight path discovered: " .. name)
+                end
                 self:OnFlightPathDiscovered(name, i)
                 discoveredNew = true
             end

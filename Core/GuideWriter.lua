@@ -125,6 +125,207 @@ local function useItemById(itemId)
 end
 
 
+--[[ STEP GROUPING FUNCTIONS ]]--
+
+-- Group steps: combine OC steps with main lines
+local function groupSteps(guide, stepState, currentGuideId)
+    if not guide or not guide.steps then
+        return {}, {}, {}
+    end
+    
+    local displaySteps = {}
+    local originalIndexToDisplayIndex = {}
+    local displayIndexToOriginalIndex = {}
+    
+    local i = 1
+    while i <= safe_tablelen(guide.steps) do
+        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false, questTags={}, learnTags={}}
+        
+        -- Collect [OC] lines
+        while i <= safe_tablelen(guide.steps) and guide.steps[i] and (guide.steps[i].emptyLine or guide.steps[i].complete_with_next) do
+            table.insert(stepFrameData.lines, {
+                text = guide.steps[i].text,
+                isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
+                icon = guide.steps[i].icon,
+                useItemId = guide.steps[i].useItemId,
+                questId = guide.steps[i].questId,
+                coords = guide.steps[i].coords,
+                stepType = guide.steps[i].stepType,
+                questTags = guide.steps[i].questTags,
+                experienceRequirement = guide.steps[i].experienceRequirement,
+                learnTags = guide.steps[i].learnTags,
+                destination = guide.steps[i].destination,
+            })
+            if guide.steps[i].icon and not stepFrameData.icon then
+                stepFrameData.icon = guide.steps[i].icon
+            end
+            if guide.steps[i].questTags then
+                for _, tag in ipairs(guide.steps[i].questTags) do
+                    table.insert(stepFrameData.questTags, tag)
+                end
+            end
+            if guide.steps[i].experienceRequirement then
+                stepFrameData.hasCheckbox = true
+            end
+            i = i + 1
+        end
+        
+        -- Add main line
+        if i <= safe_tablelen(guide.steps) and guide.steps[i] then
+            table.insert(stepFrameData.lines, {
+                text = guide.steps[i].text,
+                isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
+                icon = guide.steps[i].icon,
+                useItemId = guide.steps[i].useItemId,
+                questId = guide.steps[i].questId,
+                coords = guide.steps[i].coords,
+                stepType = guide.steps[i].stepType,
+                questTags = guide.steps[i].questTags,
+                experienceRequirement = guide.steps[i].experienceRequirement,
+                learnTags = guide.steps[i].learnTags,
+                destination = guide.steps[i].destination,
+            })
+            
+            stepFrameData.hasCheckbox = true
+            
+            if guide.steps[i].experienceRequirement then
+                stepFrameData.hasCheckbox = true
+            end
+            if guide.steps[i].icon and not stepFrameData.icon then
+                stepFrameData.icon = guide.steps[i].icon
+            end
+            if guide.steps[i].questTags then
+                for _, tag in ipairs(guide.steps[i].questTags) do
+                    table.insert(stepFrameData.questTags, tag)
+                end
+            end
+            
+            local displayIndex = safe_tablelen(displaySteps) + 1
+            originalIndexToDisplayIndex[i] = displayIndex
+            displayIndexToOriginalIndex[displayIndex] = i
+            i = i + 1
+        end
+        table.insert(displaySteps, stepFrameData)
+    end
+    
+    -- Handle next guide checkbox
+    if guide.clickToNext and guide.next and safe_tablelen(displaySteps) > 0 then
+        local lastStepIndex = safe_tablelen(displaySteps)
+        displaySteps[lastStepIndex].hasCheckbox = true
+    end
+    
+    return displaySteps, originalIndexToDisplayIndex, displayIndexToOriginalIndex
+end
+
+--[[ SCROLL MANAGEMENT FUNCTIONS ]]--
+
+-- Calculate scroll position for a specific step
+local function calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
+    local targetScroll = 0
+    for i = 1, stepIndex - 1 do
+        local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
+        if stepFrame and stepFrame.GetHeight then
+            targetScroll = targetScroll + stepFrame:GetHeight()
+        end
+    end
+    
+    if stepIndex > 1 then
+        targetScroll = targetScroll + (math.abs(spacing) * (stepIndex - 1))
+    end
+    
+    return math.max(0, targetScroll)
+end
+
+-- Scroll to specific step
+local function scrollToStep(stepIndex, scrollChild, guideId, spacing)
+    if stepIndex > 0 and GLV_MainScrollFrame then
+        local targetScroll = calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
+        local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
+        if maxScroll and maxScroll > 0 then
+            targetScroll = math.min(targetScroll, maxScroll)
+        end
+        GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
+    end
+end
+
+--[[ CHECKBOX LOGIC FUNCTIONS ]]--
+
+-- Update colors for all step frames (exposed globally for QuestTracker)
+local function updateStepColors(scrollChild, guideId, displaySteps, activeStepIndex)
+    for i = 1, table.getn(displaySteps) do
+        local frame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
+        if frame and frame.SetBackdropColor then
+            local col = (i == activeStepIndex) and CONFIG.colors.active or (isEven(i) and CONFIG.colors.even or CONFIG.colors.odd)
+            frame:SetBackdropColor(unpack(col))
+        end
+    end
+end
+
+-- Handle next guide loading
+local function handleNextGuideLoad(guide, currentIndex, displaySteps)
+    if guide.next and guide.clickToNext and currentIndex == safe_tablelen(displaySteps) then
+        local nextGuideName = guide.next
+        local nextGuideGroup, nextGuideId = nil, nil
+        
+        for groupName, groupGuides in pairs(GLV.loadedGuides) do
+            if groupGuides then
+                for guideId, guideData in pairs(groupGuides) do
+                    if guideData.name == nextGuideName or 
+                       string.find(guideData.name, nextGuideName) or 
+                       string.find(nextGuideName, guideData.name) then
+                        nextGuideGroup = groupName
+                        nextGuideId = guideId
+                        break
+                    end
+                end
+                if nextGuideGroup then break end
+            end
+        end
+        
+        if nextGuideGroup and nextGuideId then
+            GLV:LoadGuide(nextGuideGroup, nextGuideId)
+        end
+    end
+end
+
+-- Find the first unchecked step with checkbox
+local function findFirstUncheckedStep(displaySteps, displayIndexToOriginalIndex, stepState)
+    for i = 1, table.getn(displaySteps) do
+        if displaySteps[i] and displaySteps[i].hasCheckbox then
+            local orig = displayIndexToOriginalIndex[i]
+            if orig and not stepState[orig] then
+                return i
+            end
+        end
+    end
+    return 1 -- Fallback to first step
+end
+
+-- Calculate new active step based on checkbox state
+local function calculateNewActiveStep(checked, currentIndex, currentActiveStep, displaySteps, displayIndexToOriginalIndex, stepState)
+    if not checked then
+        -- When unchecking, always recalculate to find first unchecked step
+        return findFirstUncheckedStep(displaySteps, displayIndexToOriginalIndex, stepState)
+    end
+    
+    -- When checking
+    if currentIndex == currentActiveStep then
+        -- Move to next unchecked step
+        local totalSteps = table.getn(displaySteps)
+        for i = currentIndex + 1, totalSteps do
+            if displaySteps[i] and displaySteps[i].hasCheckbox then
+                local orig = displayIndexToOriginalIndex[i]
+                if orig and not stepState[orig] then
+                    return i
+                end
+            end
+        end
+        return currentIndex -- Stay on current if no more unchecked
+    end
+    
+    return currentActiveStep
+end
+
 --[[ MAIN GUIDE FUNCTIONS ]]--
 
 -- Public: rebuild the guide UI using the current guide and main scroll child
@@ -168,90 +369,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     local totalHeight = 0
     local currentGuideId = guideId or guide.id or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
-    local displaySteps = {}
+    
     -- expose current guide to other modules (e.g., quest tracker)
     GLV.CurrentGuide = guide
-    local originalIndexToDisplayIndex = {}
-    local displayIndexToOriginalIndex = {}
-
-    -- regroup steps: OC + main line
-    local i=1
-    while i <= safe_tablelen(guide.steps) do
-        local stepFrameData = {lines={}, icon=nil, hasCheckbox=false, questTags={}, learnTags={}}
-        -- collect [OC] lines
-        while i <= safe_tablelen(guide.steps) and guide.steps[i] and (guide.steps[i].emptyLine or guide.steps[i].complete_with_next) do
-            table.insert(stepFrameData.lines, {
-                text = guide.steps[i].text,
-                isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
-                icon = guide.steps[i].icon,
-                useItemId = guide.steps[i].useItemId,
-                questId = guide.steps[i].questId,
-                coords = guide.steps[i].coords,
-                stepType = guide.steps[i].stepType,
-                questTags = guide.steps[i].questTags,
-                experienceRequirement = guide.steps[i].experienceRequirement,
-                learnTags = guide.steps[i].learnTags,
-                destination = guide.steps[i].destination,
-            })
-            if guide.steps[i].icon and not stepFrameData.icon then
-                stepFrameData.icon = guide.steps[i].icon
-            end
-            if guide.steps[i].questTags then
-                for _, tag in ipairs(guide.steps[i].questTags) do
-                    table.insert(stepFrameData.questTags, tag)
-                end
-            end
-            
-            if guide.steps[i].experienceRequirement then
-                stepFrameData.hasCheckbox = true
-            end
-            i=i+1
-        end
-        if i <= safe_tablelen(guide.steps) and guide.steps[i] then
-            table.insert(stepFrameData.lines, {
-                text = guide.steps[i].text,
-                isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
-                icon = guide.steps[i].icon,
-                useItemId = guide.steps[i].useItemId,
-                questId = guide.steps[i].questId,
-                coords = guide.steps[i].coords,
-                stepType = guide.steps[i].stepType,
-                questTags = guide.steps[i].questTags,
-                experienceRequirement = guide.steps[i].experienceRequirement,
-                learnTags = guide.steps[i].learnTags,
-                destination = guide.steps[i].destination,
-            })
-
-            stepFrameData.hasCheckbox = true
-            
-            -- Check if this line has XP requirements (for checkbox)
-            if guide.steps[i].experienceRequirement then
-                stepFrameData.hasCheckbox = true
-            end
-            if guide.steps[i].icon and not stepFrameData.icon then
-                stepFrameData.icon = guide.steps[i].icon
-            end
-            -- Collect questTags from the main line
-            if guide.steps[i].questTags then
-                for _, tag in ipairs(guide.steps[i].questTags) do
-                    table.insert(stepFrameData.questTags, tag)
-                end
-
-            end
-            -- map original index (main line) to display index pre-insertion
-            local displayIndex = safe_tablelen(displaySteps) + 1
-            originalIndexToDisplayIndex[i] = displayIndex
-            displayIndexToOriginalIndex[displayIndex] = i
-            i=i+1
-        end
-        table.insert(displaySteps, stepFrameData)
-    end
     
-    -- Ensure the last step has a checkbox if the guide has clickToNext
-    if guide.clickToNext and guide.next and safe_tablelen(displaySteps) > 0 then
-        local lastStepIndex = safe_tablelen(displaySteps)
-        displaySteps[lastStepIndex].hasCheckbox = true
-    end
+    -- Use extracted function to group steps
+    local displaySteps, originalIndexToDisplayIndex, displayIndexToOriginalIndex = groupSteps(guide, stepState, currentGuideId)
 
     local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     GLV_MainLoadedGuideCounter:SetText("("..currentStep.."/"..safe_tablelen(displaySteps)..")")
@@ -361,98 +484,29 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             check:SetScript("OnClick", function()
                 local checked = not not check:GetChecked()
                 if not currentIndex then return end
+                
+                -- Update step state
                 local origIdx = displayIndexToOriginalIndex[currentIndex]
                 if origIdx then
                     stepState[origIdx] = checked
                 end
                 GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
                 
-                -- Check if this is the last step and has a next guide to load
-                if checked and guide.next and guide.clickToNext and currentIndex == safe_tablelen(displaySteps) then
-                    -- This is the last step with a next guide, load it automatically
-                    local nextGuideName = guide.next
-                    local nextGuideGroup = nil
-                    local nextGuideId = nil
-                    
-                    -- Find the next guide in the loaded guides
-                    for groupName, groupGuides in pairs(GLV.loadedGuides) do
-                        if groupGuides then
-                            for guideId, guideData in pairs(groupGuides) do
-                                -- Try exact match first
-                                if guideData.name == nextGuideName then
-                                    nextGuideGroup = groupName
-                                    nextGuideId = guideId
-                                    break
-                                end
-                                -- Try partial match (for cases where the name might be slightly different)
-                                if string.find(guideData.name, nextGuideName) or string.find(nextGuideName, guideData.name) then
-                                    nextGuideGroup = groupName
-                                    nextGuideId = guideId
-                                    break
-                                end
-                            end
-                            if nextGuideGroup then break end
-                        end
-                    end
-                    
-                    -- Load the next guide if found
-                    if nextGuideGroup and nextGuideId then
-                        GLV:LoadGuide(nextGuideGroup, nextGuideId)
-                    end
-                end
-                
-                -- Get current active step before potentially changing it
-                local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-                local newActiveStep = currentActiveStep
-                
-                -- Only recalculate active step if we're checking a box (not unchecking)
+                -- Handle next guide loading if needed
                 if checked then
-                    -- If we're checking the current active step, move to next unchecked
-                    if currentIndex == currentActiveStep then
-                        local totalSteps = table.getn(displaySteps)
-                        for i2 = currentIndex + 1, totalSteps do
-                            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                                local orig = displayIndexToOriginalIndex[i2]
-                                if orig and not stepState[orig] then
-                                    newActiveStep = i2
-                                    break
-                                end
-                            end
-                        end
-                        -- If no next unchecked found, stay on current step
-                        if newActiveStep == currentActiveStep then
-                            newActiveStep = currentIndex
-                        end
-                    else
-                        -- If checking a different step, don't change active step
-                        newActiveStep = currentActiveStep
-                    end
-                else
-                    -- CORRECTION : Quand on décoche, ajuster l'étape active sans scroller
-                    if currentIndex == currentActiveStep - 1 then
-                        -- If unchecking the step just before current active, make it active
-                        newActiveStep = currentIndex
-                    else
-                        -- Otherwise, don't change active step
-                        newActiveStep = currentActiveStep
-                    end
+                    handleNextGuideLoad(guide, currentIndex, displaySteps)
                 end
                 
-                -- Only update if step actually changed
+                -- Calculate new active step
+                local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+                local newActiveStep = calculateNewActiveStep(checked, currentIndex, currentActiveStep, displaySteps, displayIndexToOriginalIndex, stepState)
+                
+                -- Update step if changed
                 if newActiveStep ~= currentActiveStep then
                     GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
                     GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(table.getn(displaySteps))..")")
                     
-                    -- visually highlight the new active step and reset others
-                    for i2 = 1, table.getn(displaySteps) do
-                        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
-                        if f and f.SetBackdropColor then
-                            local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
-                            f:SetBackdropColor(unpack(col))
-                        end
-                    end
-                    
-                    -- Update Guide Navigation waypoint for the new active step
+                    -- Update Guide Navigation waypoint
                     if newActiveStep > 0 and GLV.GuideNavigation then
                         local activeStepData = displaySteps[newActiveStep]
                         if activeStepData then
@@ -460,40 +514,14 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                         end
                     end
                     
-                    -- CORRECTION : Scroll seulement si on a coché une case (pas si on a décoché)
-                    if checked and newActiveStep > 0 and GLV_MainScrollFrame then
-                        -- Calculate the exact position: sum of all previous step heights + spacing
-                        local targetScroll = 0
-                        for i = 1, newActiveStep - 1 do
-                            local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
-                            if stepFrame and stepFrame.GetHeight then
-                                targetScroll = targetScroll + stepFrame:GetHeight()
-                            end
-                        end
-                        -- Add spacing between frames (spacing * (number of steps - 1))
-                        if newActiveStep > 1 then
-                            targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (newActiveStep - 1))
-                        end
-                        -- Ensure we don't scroll below 0
-                        targetScroll = math.max(0, targetScroll)
-                        -- Adjust scroll to leave some space above for manual scrolling
-                        local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
-                        if maxScroll and maxScroll > 0 then
-                            targetScroll = math.min(targetScroll, maxScroll)
-                        end
-                        GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
-                    end
-                else
-                    -- CORRECTION : Même si l'étape active ne change pas, 
-                    -- il faut quand même mettre à jour les couleurs car l'état de la case a changé
-                    for i2 = 1, table.getn(displaySteps) do
-                        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
-                        if f and f.SetBackdropColor then
-                            local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
-                            f:SetBackdropColor(unpack(col))
-                        end
+                    -- Scroll to new step if checked
+                    if checked then
+                        scrollToStep(newActiveStep, scrollChild, guideId, CONFIG.spacing)
                     end
                 end
+                
+                -- Always update colors
+                updateStepColors(scrollChild, guideId, displaySteps, newActiveStep)
             end)
         end
 
@@ -524,14 +552,8 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     
     GLV_MainLoadedGuideCounter:SetText("("..tostring(activeStep).."/"..tostring(totalSteps)..")")
     
-    -- highlight active frame at initial render and normalize others
-    for i2 = 1, totalSteps do
-        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
-        if f and f.SetBackdropColor then
-            local col = (i2 == activeStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
-            f:SetBackdropColor(unpack(col))
-        end
-    end
+    -- Highlight active frame at initial render
+    updateStepColors(scrollChild, guideId, displaySteps, activeStep)
     
     -- Set initial Guide Navigation waypoint
     if activeStep > 0 and GLV.GuideNavigation then
@@ -542,31 +564,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     end
     
     -- Scroll to show the active step at the top (initial load)
-    if activeStep > 0 and GLV_MainScrollFrame then
-        -- Wait 1 second for UI to stabilize, then scroll to active step
+    if activeStep > 0 then
         GLV.Ace:ScheduleEvent(function()
-            if GLV_MainScrollFrame then
-                -- Same calculation as checkbox click: sum of all previous step heights + spacing
-                local targetScroll = 0
-                for i = 1, activeStep - 1 do
-                    local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
-                    if stepFrame and stepFrame.GetHeight then
-                        targetScroll = targetScroll + stepFrame:GetHeight()
-                    end
-                end
-                -- Add spacing between frames (spacing * (number of steps - 1))
-                if activeStep > 1 then
-                    targetScroll = targetScroll + (math.abs(CONFIG.spacing) * (activeStep - 1))
-                end
-                -- Ensure we don't scroll below 0
-                targetScroll = math.max(0, targetScroll)
-                -- Adjust scroll to leave some space above for manual scrolling
-                local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
-                if maxScroll and maxScroll > 0 then
-                    targetScroll = math.min(targetScroll, maxScroll)
-                end
-                GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
-            end
+            scrollToStep(activeStep, scrollChild, guideId, CONFIG.spacing)
         end, 1)
     end
      
@@ -579,3 +579,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     
     if callback then callback() end
 end
+
+-- Expose updateStepColors globally for use by QuestTracker
+GLV.updateStepColors = updateStepColors

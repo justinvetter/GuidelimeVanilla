@@ -12,6 +12,14 @@ local GLV = LibStub("GuidelimeVanilla")
 local QuestTracker = {}
 GLV.QuestTracker = QuestTracker
 
+local CONFIG = {
+    colors = {
+        even = {0.2,0.2,0.2,0.8},
+        odd = {0.1,0.1,0.1,0.8},
+        active = {0.8,0.8,0.2,0.9}
+    }
+}
+
 -- Initialize quest tracking, hook original functions and register event handlers
 function QuestTracker:Init()
     local store = GLV.Settings:GetOption({"QuestTracker"}) or {}
@@ -31,40 +39,7 @@ end
 
 --[[ LOCAL FUNCTIONS ]]--
 
--- Utility function to apply highlighting to all frames
-local function applyHighlighting(scrollChild, activeStepIndex)
-    
-    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
-    -- Count total steps
-    local totalSteps = 0
-    for i = 1, 200 do -- arbitrary limit
-        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
-        local frame = getglobal(frameName)
-        if frame then
-            totalSteps = totalSteps + 1
-        else
-            break
-        end
-    end
-        
-    if totalSteps == 0 then
-        return
-    end
-    
-    -- Apply highlighting to all steps
-    for di = 1, totalSteps do
-        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..di
-        local frame = getglobal(frameName)
-        
-        if frame then
-            if frame.SetBackdropColor then
-                local col = (di == activeStepIndex) and CONFIG.colors.active or (isEven(di) and CONFIG.colors.even or CONFIG.colors.odd)
-                frame:SetBackdropColor(unpack(col))
-            end
-        end
-    end
-    
-end
+-- Old applyHighlighting function removed - now using unified system from GuideWriter
 
 
 --[[ EVENTS ]]--
@@ -293,7 +268,13 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
                 end
             end
             
-            applyHighlighting(scrollChild, firstUnchecked)
+            -- Use the unified highlighting system
+            if GLV.CurrentDisplaySteps and GLV.updateStepColors then
+                GLV.updateStepColors(scrollChild, currentGuideId, GLV.CurrentDisplaySteps, firstUnchecked)
+            else
+                -- Fallback highlighting
+                self:RefreshHighlighting()
+            end
             
             if firstUnchecked > 0 and GLV_MainScrollFrame then
                 local targetScroll = 0
@@ -361,8 +342,21 @@ function QuestTracker:RefreshHighlighting()
         activeStep = totalSteps
     end
     
-    -- Call applyHighlighting
-    applyHighlighting(scrollChild, activeStep)
+    -- Use the unified highlighting system from GuideWriter
+    if GLV.CurrentDisplaySteps and GLV.updateStepColors then
+        GLV.updateStepColors(scrollChild, currentGuideId, GLV.CurrentDisplaySteps, activeStep)
+    else
+        -- Fallback: Use local highlighting if GuideWriter not loaded yet
+        for di = 1, totalSteps do
+            local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..di
+            local frame = getglobal(frameName)
+            
+            if frame and frame.SetBackdropColor then
+                local col = (di == activeStep) and {0.8,0.8,0.2,0.9} or (isEven(di) and {0.2,0.2,0.2,0.8} or {0.1,0.1,0.1,0.8})
+                frame:SetBackdropColor(unpack(col))
+            end
+        end
+    end
     
 end
 

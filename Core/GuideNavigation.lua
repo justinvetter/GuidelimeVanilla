@@ -19,7 +19,7 @@ local GuideNavigation = {}
 
 local ARROW_TEXTURE_PATH = "Interface\\AddOns\\GuidelimeVanilla\\Textures\\NavArrows"
 local TOTAL_ARROWS = 108
-local UPDATE_FREQUENCY = 0.02 -- Very frequent updates like pfQuest
+local UPDATE_FREQUENCY = 0.02 -- 50 FPS for smooth arrow animation
 
 --[[ STATE VARIABLES ]]--
 
@@ -219,7 +219,7 @@ end
 
 -- Adds a waypoint (replaces TomTom function)
 function GuideNavigation:AddWaypoint(coords, description)
-    self:RemoveCurrentWaypoint()
+    self:ClearAllWaypoints()
     
     if self:SetWaypoint(coords, description) then
         if GLV.Settings:GetOption({"Navigation", "AutoShow"}, true) then
@@ -228,15 +228,15 @@ function GuideNavigation:AddWaypoint(coords, description)
     end
 end
 
--- Removes current waypoint (replaces TomTom function)
-function GuideNavigation:RemoveCurrentWaypoint()
+-- Clears all waypoints and hides navigation (replaces TomTom functions)
+function GuideNavigation:ClearAllWaypoints()
     self:ClearWaypoint()
     self:Hide()
 end
 
--- Clears all waypoints (replaces TomTom function)
-function GuideNavigation:ClearAllWaypoints()
-    self:RemoveCurrentWaypoint()
+-- Alias for backward compatibility
+function GuideNavigation:RemoveCurrentWaypoint()
+    self:ClearAllWaypoints()
 end
 
 --[[ NAVIGATION VISIBILITY CONTROL ]]--
@@ -367,6 +367,91 @@ function GuideNavigation:OnUpdate()
         updateTimer = 0
         self:UpdateNavigation()
     end
+end
+
+--[[ COORDINATE FINDING FUNCTIONS ]]--
+
+-- Extract TAR coordinates from step data
+local function extractTARCoordinates(stepData)
+    local tarCoords = {}
+    if not stepData or not stepData.lines then
+        return tarCoords
+    end
+    
+    for _, line in ipairs(stepData.lines) do
+        local lineText = line.text or ""
+        for targetId in string.gmatch(lineText, "%[TAR(%d+)%]") do
+            local npcCoords = GLV:GetNPCCoordinates(targetId)
+            if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
+                table.insert(tarCoords, {
+                    x = npcCoords.x, 
+                    y = npcCoords.y, 
+                    z = npcCoords.z, 
+                    type = "target", 
+                    npcId = tonumber(targetId)
+                })
+            end
+        end
+    end
+    
+    return tarCoords
+end
+
+-- Collect all coordinates from step lines
+local function collectAllStepCoordinates(stepData)
+    local allCoords = {}
+    if stepData and stepData.lines then
+        for _, line in ipairs(stepData.lines) do
+            if line.coords and table.getn(line.coords) > 0 then
+                for _, coord in ipairs(line.coords) do
+                    table.insert(allCoords, coord)
+                end
+            end
+        end
+    end
+    return allCoords
+end
+
+-- Find quest coordinates for objectives
+local function findQuestObjectiveCoordinates(stepData, playerPos)
+    if not stepData or not stepData.lines then
+        return nil
+    end
+    
+    for _, line in ipairs(stepData.lines) do
+        if line.questId then
+            local questCoords = GLV:GetQuestAllCoords(line.questId)
+            if questCoords and table.getn(questCoords) > 0 then
+                -- Find closest objective coordinate
+                local closestCoord = nil
+                local closestDistance = nil
+                
+                for _, coord in ipairs(questCoords) do
+                    if coord.type == "objective" then
+                        local coordPos = {
+                            c = playerPos.c,
+                            x = coord.x / 100,
+                            y = coord.y / 100,
+                            z = coord.z
+                        }
+                        
+                        local distance = GuideNavigation:CalculateDistance(playerPos, coordPos)
+                        if not closestDistance or distance < closestDistance then
+                            closestDistance = distance
+                            closestCoord = coord
+                        end
+                    end
+                end
+                
+                if closestCoord then
+                    return closestCoord
+                else
+                    return GuideNavigation:FindCoordinatesByType(questCoords, GuideNavigation:GetStepType(stepData))
+                end
+            end
+        end
+    end
+    return nil
 end
 
 --[[ GUIDE INTEGRATION FUNCTIONS ]]--
@@ -518,95 +603,44 @@ end
 function GuideNavigation:UpdateWaypointForStep(stepData)
     self:RemoveCurrentWaypoint()
     
-    local targetCoords = nil
-    local stepType = self:GetStepType(stepData)
-
-    -- Get current player position once for consistency
+    -- Get current player position
     playerPos = self:GetPlayerPosition()
     if not playerPos then
         return
     end
     
-    local tarCoords = {}
-    if stepData and stepData.lines then
-        for _, line in ipairs(stepData.lines) do
-            local lineText = line.text or ""
-            for targetId in string.gmatch(lineText, "%[TAR(%d+)%]") do
-                local npcCoords = GLV:GetNPCCoordinates(targetId)
-                if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
-                    table.insert(tarCoords, {x = npcCoords.x, y = npcCoords.y, z = npcCoords.z, type = "target", npcId = tonumber(targetId)})
-                end
-            end
-        end
-    end
+    local targetCoords = nil
+    local stepType = self:GetStepType(stepData)
     
+    -- Try different coordinate sources in order of priority
+    -- 1. TAR coordinates (highest priority)
+    local tarCoords = extractTARCoordinates(stepData)
     if table.getn(tarCoords) > 0 then
         targetCoords = tarCoords[1]
     end
     
+    -- 2. Direct step coordinates
     if not targetCoords and stepData and stepData.coords and table.getn(stepData.coords) > 0 then
         targetCoords = self:FindCoordinatesByType(stepData.coords, stepType)
     end
     
-    if not targetCoords and stepData and stepData.lines then
-        local allCoords = {}
-        for _, line in ipairs(stepData.lines) do
-            if line.coords and table.getn(line.coords) > 0 then
-                for _, coord in ipairs(line.coords) do
-                    table.insert(allCoords, coord)
-                end
-            end
-        end
-        
+    -- 3. Line coordinates
+    if not targetCoords then
+        local allCoords = collectAllStepCoordinates(stepData)
         if table.getn(allCoords) > 0 then
             targetCoords = self:FindCoordinatesByType(allCoords, stepType)
         end
     end
     
-    -- NEW: Handle quest objectives with proper player position
-    if (not targetCoords and stepData and stepData.lines) or stepType == "COMPLETE" then
-        for _, line in ipairs(stepData.lines) do
-            if line.questId then
-                local questId = line.questId
-                local questCoords = GLV:GetQuestAllCoords(questId)
-                
-                if questCoords and table.getn(questCoords) > 0 then
-                    -- For objective coordinates, find the closest one
-                    local closestCoord = nil
-                    local closestDistance = nil
-                    
-                    for _, coord in ipairs(questCoords) do
-                        if coord.type == "objective" then
-                            -- Calculate distance using the same method as the rest of the navigation system
-                            local coordPos = {
-                                c = playerPos.c,
-                                x = coord.x / 100,
-                                y = coord.y / 100,
-                                z = coord.z
-                            }
-                            
-                            local distance = self:CalculateDistance(playerPos, coordPos)
-                            
-                            if not closestDistance or distance < closestDistance then
-                                closestDistance = distance
-                                closestCoord = coord
-                            end
-                        end
-                    end
-                    
-                    if closestCoord then
-                        targetCoords = closestCoord
-                        break
-                    else
-                        -- Fallback to any coordinate if no objective found
-                        targetCoords = self:FindCoordinatesByType(questCoords, stepType)
-                        if targetCoords then break end
-                    end
-                end
-            end
+    -- 4. Quest objective coordinates (for COMPLETE steps or fallback)
+    if not targetCoords or stepType == "COMPLETE" then
+        local questCoords = findQuestObjectiveCoordinates(stepData, playerPos)
+        if questCoords then
+            targetCoords = questCoords
         end
     end
     
+    -- Set waypoint if coordinates found
     if targetCoords then
         local description = self:GetStepDescription(stepData, targetCoords)
         self:AddWaypoint(targetCoords, description)
@@ -638,47 +672,7 @@ function GuideNavigation:GetZoneInfo(zone, cont)
     return nil, nil, nil
 end
 
-function GuideNavigation:FindClosestUnit(unitID, questZone)
-    if not unitID then
-        return nil, nil
-    end
-    
-    local nearest = nil
-    local bestUnit = nil
-
-    while playerPos == nil do
-        playerPos = self:GetPlayerPosition()
-    end
-
-    local playerX, playerY = playerPos.x, playerPos.y
-    
-    if VGDB["units"]["data"][unitID] and VGDB["units"]["data"][unitID]["coords"] then
-        for _, coordSet in ipairs(VGDB["units"]["data"][unitID]["coords"]) do
-            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
-                    if playerX and playerY then
-                        local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
-                        local distance = math.sqrt(x * x + y * y)
-
-                        if not nearest or distance < nearest then
-                            nearest = distance
-                            bestUnit = {
-                                type = "objective",
-                                npcId = unitID,
-                                x = coordSet[1],
-                                y = coordSet[2],
-                                z = coordSet[3],
-                                distance = distance
-                            }
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return bestUnit, nearest
-end
+-- FindClosestUnit moved to DBTools.lua where it belongs
 
 
 --[[ INITIALIZATION ]]--

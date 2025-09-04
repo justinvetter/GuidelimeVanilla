@@ -274,26 +274,21 @@ end
 -- Manage XP timer based on whether there are requirements to monitor
 function CharacterTracker:ManageXPTimer(hasXPRequirements)
     if hasXPRequirements then
-        if self.xpCheckTimer then
-            if not self.xpCheckTimer then
-                if GLV.Ace then
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Starting XP check timer")
-                    end
-                    self.xpCheckTimer = GLV.Ace:ScheduleRepeatingEvent("XPCheckUpdate", function() self:CheckForXPChanges() end, 2)
-                end
+        -- Start timer if not already running
+        if not self.xpCheckTimer and GLV.Ace then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Starting XP check timer")
             end
+            self.xpCheckTimer = GLV.Ace:ScheduleRepeatingEvent("XPCheckUpdate", function() self:CheckForXPChanges() end, 5)
         end
     else
-        if self.xpCheckTimer then
-            if not self.xpCheckTimer then
-                if GLV.Ace then
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Stopping XP check timer")
-                    end
-                    self.xpCheckTimer = GLV.Ace:CancelScheduledEvent("XPCheckUpdate")
-                end
+        -- Stop timer if running
+        if self.xpCheckTimer and GLV.Ace then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Stopping XP check timer")
             end
+            GLV.Ace:CancelScheduledEvent("XPCheckUpdate")
+            self.xpCheckTimer = nil
         end
     end
 end
