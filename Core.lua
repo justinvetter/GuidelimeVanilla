@@ -9,6 +9,7 @@ This is the main file.
 ]]--
 local _ADDON_NAME = "GuidelimeVanilla"
 local _VERSION = GetAddOnMetadata(_ADDON_NAME, "Version")
+local _G = _G or getfenv(0)
 
 local GLV = LibStub:NewLibrary(_ADDON_NAME, 1)
 if not GLV then return end

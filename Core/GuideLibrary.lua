@@ -9,6 +9,7 @@ A Guide is another Addon, and every lua (guides) file must begins with :
 local GLV = LibStub("GuidelimeVanilla")
 GLV:RegisterGuide(TEXT GUIDE, "Group Name")
 ]]--
+local _G = _G or getfenv(0)
 local GLV = LibStub("GuidelimeVanilla")
 
 GLV.loadedGuides = GLV.loadedGuides or {}
@@ -175,7 +176,7 @@ function GLV:LoadGuide(group, guideId)
                 local foundStep = false
                 for displayIndex, originalIndex in pairs(GLV.CurrentDisplayToOriginal) do
                     if originalIndex == stepIndex then
-                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. displayIndex]
+                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. displayIndex]
                         if stepFrame then
                             local checkbox = _G[stepFrame:GetName() .. "Check"]
                             if checkbox then
@@ -192,21 +193,17 @@ function GLV:LoadGuide(group, guideId)
     
     if savedCurrentStep > 0 then
         GLV.Settings:SetOption(savedCurrentStep, {"Guide", "Guides", guideId, "CurrentStep"})
-        if GLV.QuestTracker then
-            GLV.QuestTracker:RefreshHighlighting()
-        end
     else
         -- Only calculate first unchecked if we don't have a saved step
-        -- and if we really need to change the current step
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
         
-        if currentStep == 0 then
+        if not currentStep or currentStep == 0 then
             -- No current step, find first unchecked
             local firstUnchecked = 0
             
             -- Look for the first step that's not completed
             for i = 1, table.getn(guide.steps) do
-                local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
+                local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. i]
                 if stepFrame then
                     local checkbox = _G[stepFrame:GetName() .. "Check"]
                     if checkbox and not checkbox:GetChecked() then
@@ -220,38 +217,6 @@ function GLV:LoadGuide(group, guideId)
             if firstUnchecked > 0 then
                 GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
             end
-        else
-            -- We have a current step, verify it's still valid
-            local stepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
-            if diToOrig[currentStep] then
-                local origIdx = diToOrig[currentStep]
-                local stepCompleted = stepState[origIdx]
-                
-                if stepCompleted then
-                    -- Current step is completed, find next valid step
-                    local firstUnchecked = 0
-                    for i = 1, table.getn(guide.steps) do
-                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
-                        if stepFrame then
-                            local checkbox = _G[stepFrame:GetName() .. "Check"]
-                            if checkbox and not checkbox:GetChecked() then
-                                firstUnchecked = i
-                                break
-                            end
-                        end
-                    end
-                    
-                    if firstUnchecked > 0 then
-                        GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
-                    end
-                end
-            end
-        end
-        
-        if GLV.QuestTracker then
-            GLV.QuestTracker:RefreshHighlighting()
         end
     end
     
@@ -275,10 +240,6 @@ function GLV:LoadGuide(group, guideId)
                 end
             end
         end
-    end
-    
-    if GLV.QuestTracker then
-        GLV.QuestTracker:RefreshHighlighting()
     end
     
     if GLV.CharacterTracker then

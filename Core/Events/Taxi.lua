@@ -111,7 +111,7 @@ function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
                             GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
                             
                             -- Mettre à jour visuellement la checkbox
-                            local stepFrameName = GLV_MainScrollFrameScrollChild:GetName() .. "Step" .. displayIndex
+                            local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
                             local stepFrame = getglobal(stepFrameName)
                             if stepFrame then
                                 local checkbox = getglobal(stepFrameName .. "Check")
@@ -204,7 +204,7 @@ function TaxiTracker:UpdateActiveStep()
         
         -- Mettre à jour les couleurs visuelles
         for i = 1, totalSteps do
-            local stepFrameName = GLV_MainScrollFrameScrollChild:GetName() .. "Step" .. i
+            local stepFrameName = GLV_MainScrollFrameScrollChild:GetName() .. "Step" .. currentGuideId .. "_" .. i
             local stepFrame = getglobal(stepFrameName)
             if stepFrame and stepFrame.SetBackdropColor then
                 local color = (i == newActiveStep) and {0.8,0.8,0.2,0.9} or (isEven(i) and {0.2,0.2,0.2,0.8} or {0.1,0.1,0.1,0.8})
@@ -220,7 +220,7 @@ function TaxiTracker:UpdateActiveStep()
                     local scrollChild = GLV_MainScrollFrameScrollChild
                     
                     for i = 1, newActiveStep - 1 do
-                        local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
+                        local stepFrame = getglobal(scrollChild:GetName().."Step"..currentGuideId.."_"..i)
                         if stepFrame and stepFrame.GetHeight then
                             targetScroll = targetScroll + stepFrame:GetHeight()
                         end

@@ -6,6 +6,7 @@ Author: Grommey
 Description:
 Quest Tracker. Track when quests are accepted / completed
 ]]--
+local _G = _G or getfenv(0)
 local GLV = LibStub("GuidelimeVanilla")
 
 local QuestTracker = {}
@@ -32,25 +33,37 @@ end
 
 -- Utility function to apply highlighting to all frames
 local function applyHighlighting(scrollChild, activeStepIndex)
-    if not scrollChild then return end
     
-    local totalSteps = GLV.CurrentDisplayStepsCount or 0
-    if totalSteps == 0 then
-        local stepIndex = 1
-        while getglobal(scrollChild:GetName().."Step"..stepIndex) do
-            totalSteps = stepIndex
-            stepIndex = stepIndex + 1
-        end
-    end
-    
-    for di = 1, totalSteps do
-        local frameName = scrollChild:GetName().."Step"..di
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    -- Count total steps
+    local totalSteps = 0
+    for i = 1, 200 do -- arbitrary limit
+        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
         local frame = getglobal(frameName)
-        if frame and frame.SetBackdropColor then
-            local color = (di == activeStepIndex) and {0.8,0.8,0.2,0.9} or (isEven(di) and {0.2,0.2,0.2,0.8} or {0.1,0.1,0.1,0.8})
-            frame:SetBackdropColor(unpack(color))
+        if frame then
+            totalSteps = totalSteps + 1
+        else
+            break
         end
     end
+        
+    if totalSteps == 0 then
+        return
+    end
+    
+    -- Apply highlighting to all steps
+    for di = 1, totalSteps do
+        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..di
+        local frame = getglobal(frameName)
+        
+        if frame then
+            if frame.SetBackdropColor then
+                local col = (di == activeStepIndex) and CONFIG.colors.active or (isEven(di) and CONFIG.colors.even or CONFIG.colors.odd)
+                frame:SetBackdropColor(unpack(col))
+            end
+        end
+    end
+    
 end
 
 
@@ -271,7 +284,7 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
                 if hasCb[di] then
                     local origIdx = diToOrig[di]
                     if origIdx and stepState[origIdx] then
-                        local frameName = scrollChild:GetName().."Step"..di
+                        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..di
                         local check = getglobal(frameName.."Check")
                         if check and check.SetChecked then
                             check:SetChecked(true)
@@ -285,7 +298,7 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
             if firstUnchecked > 0 and GLV_MainScrollFrame then
                 local targetScroll = 0
                 for i = 1, firstUnchecked - 1 do
-                    local stepFrameName = scrollChild:GetName().."Step"..i
+                    local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
                     local stepFrame = getglobal(stepFrameName)
                     if stepFrame and stepFrame.GetHeight then
                         targetScroll = targetScroll + stepFrame:GetHeight()
@@ -313,45 +326,44 @@ end
 
 -- Public function to refresh highlighting (can be called from GuideWriter)
 function QuestTracker:RefreshHighlighting()
-    local scrollChild = getglobal("GLV_MainScrollFrameScrollChild")
-    if scrollChild then
-        local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
-        local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+    
+    local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
+    if not scrollChild then
+        return
+    end
         
-        if activeStep > 0 then
-            -- Check if the active step is still valid (not completed)
-            local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
-            if diToOrig[activeStep] then
-                local origIdx = diToOrig[activeStep]
-                local stepCompleted = stepState[origIdx]
-                
-                if stepCompleted then
-                    -- Active step is completed, find the next valid step
-                    local diCount = GLV.CurrentDisplayStepsCount or 0
-                    local hasCb = GLV.CurrentDisplayHasCheckbox or {}
-                    
-                    for di = 1, diCount do
-                        if hasCb[di] then
-                            local orig = diToOrig[di]
-                            if orig and not stepState[orig] then
-                                -- Found next valid step, update it
-                                GLV.Settings:SetOption(di, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-                                activeStep = di
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- Apply highlighting to the valid active step
-            if activeStep > 0 then
-                applyHighlighting(scrollChild, activeStep)
-            end
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentGroup = GLV.Settings:GetOption({"Guide", "CurrentGroup"}) or "Unknown"
+    local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0    
+    -- Force activeStep to be valid
+    local activeStep = currentStep
+    if not activeStep or activeStep == 0 then
+        activeStep = 1
+    end
+        
+    -- Count total steps
+    local totalSteps = 0
+    for i = 1, 200 do -- arbitrary limit
+        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
+        local frame = getglobal(frameName)
+        if frame then
+            totalSteps = totalSteps + 1
+        else
+            break
         end
     end
+    
+    if totalSteps == 0 then
+        return
+    end
+    
+    if activeStep > totalSteps then
+        activeStep = totalSteps
+    end
+    
+    -- Call applyHighlighting
+    applyHighlighting(scrollChild, activeStep)
+    
 end
 
 function QuestTracker:GetExpectedQuestIdFromCurrentStep(questTitle)
@@ -487,18 +499,4 @@ function HookQuestAbandon()
         end
     end
     GLV.Ace.hooks["AbandonQuest"]()
-end
-
-SLASH_GLVTESTQUEST1 = "/glvtestquest"
-SlashCmdList["GLVTESTQUEST"] = function(msg)
-    if msg and msg ~= "" then
-        local questId = GLV.QuestTracker:GetExpectedQuestIdFromCurrentStep(msg)
-        if questId then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Expected quest ID for '" .. msg .. "': " .. questId)
-        else
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r No expected quest ID found for: " .. msg)
-        end
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("Usage: /glvtestquest <quest name>")
-    end
 end

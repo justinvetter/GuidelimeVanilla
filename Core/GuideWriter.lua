@@ -136,13 +136,24 @@ function GLV:RefreshGuide()
         scrollChild = GLV_MainScrollFrame:GetScrollChild()
     end
     if not scrollChild then return end
-    self:CreateGuideSteps(scrollChild, guide, guide.id)
+    self:CreateGuideSteps(scrollChild, guide, guide.id, function()
+        -- Callback for RefreshGuide - refresh highlighting after rebuild
+        if GLV.QuestTracker then
+            GLV.QuestTracker:RefreshHighlighting()
+        end
+    end)
 end
 
 -- Create and display all guide steps in the UI with proper grouping and layout
-function GLV:CreateGuideSteps(scrollChild, guide, guideId)
-    if not scrollChild or not scrollChild.GetNumChildren then return end
-    if not guide or not guide.steps then return end
+function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
+    if not scrollChild or not scrollChild.GetNumChildren then 
+        if callback then callback() end
+        return 
+    end
+    if not guide or not guide.steps then 
+        if callback then callback() end
+        return 
+    end
 
     -- Cleanup previous children
     local children = {scrollChild:GetChildren()}
@@ -255,7 +266,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     GLV.CurrentDisplayToOriginal = displayIndexToOriginalIndex
 
     for idx, step in ipairs(displaySteps) do
-        local frame = CreateFrame("Frame", scrollChild:GetName().."Step"..idx, scrollChild)
+        local frame = CreateFrame("Frame", scrollChild:GetName().."Step"..guideId.."_"..idx, scrollChild)
         frame:SetWidth(CONFIG.totalWidth)
         frame:SetBackdrop(CONFIG.backdrop)
         if frame.EnableMouse then frame:EnableMouse(true) end
@@ -387,18 +398,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     -- Load the next guide if found
                     if nextGuideGroup and nextGuideId then
                         GLV:LoadGuide(nextGuideGroup, nextGuideId)
-                        -- Show a message to inform the user
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[GuideLime]|r Guide suivant chargé : " .. nextGuideName)
-                    else
-                        -- Show error message if guide not found
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GuideLime]|r Guide suivant non trouvé : " .. nextGuideName)
-                        -- Debug: show available guides for troubleshooting
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFAA00[GuideLime]|r Guides disponibles dans le groupe 'Sage Guide':")
-                        if GLV.loadedGuides["Sage Guide"] then
-                            for guideId, guideData in pairs(GLV.loadedGuides["Sage Guide"]) do
-                                DEFAULT_CHAT_FRAME:AddMessage("  - " .. guideData.name .. " (ID: " .. guideId .. ")")
-                            end
-                        end
                     end
                 end
                 
@@ -446,7 +445,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     
                     -- visually highlight the new active step and reset others
                     for i2 = 1, table.getn(displaySteps) do
-                        local f = getglobal(scrollChild:GetName().."Step"..i2)
+                        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
                         if f and f.SetBackdropColor then
                             local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
                             f:SetBackdropColor(unpack(col))
@@ -466,7 +465,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                         -- Calculate the exact position: sum of all previous step heights + spacing
                         local targetScroll = 0
                         for i = 1, newActiveStep - 1 do
-                            local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
+                            local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
                             if stepFrame and stepFrame.GetHeight then
                                 targetScroll = targetScroll + stepFrame:GetHeight()
                             end
@@ -488,7 +487,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                     -- CORRECTION : Même si l'étape active ne change pas, 
                     -- il faut quand même mettre à jour les couleurs car l'état de la case a changé
                     for i2 = 1, table.getn(displaySteps) do
-                        local f = getglobal(scrollChild:GetName().."Step"..i2)
+                        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
                         if f and f.SetBackdropColor then
                             local col = (i2 == newActiveStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
                             f:SetBackdropColor(unpack(col))
@@ -527,7 +526,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
     
     -- highlight active frame at initial render and normalize others
     for i2 = 1, totalSteps do
-        local f = getglobal(scrollChild:GetName().."Step"..i2)
+        local f = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i2)
         if f and f.SetBackdropColor then
             local col = (i2 == activeStep) and CONFIG.colors.active or (isEven(i2) and CONFIG.colors.even or CONFIG.colors.odd)
             f:SetBackdropColor(unpack(col))
@@ -550,7 +549,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
                 -- Same calculation as checkbox click: sum of all previous step heights + spacing
                 local targetScroll = 0
                 for i = 1, activeStep - 1 do
-                    local stepFrame = getglobal(scrollChild:GetName().."Step"..i)
+                    local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
                     if stepFrame and stepFrame.GetHeight then
                         targetScroll = targetScroll + stepFrame:GetHeight()
                     end
@@ -573,4 +572,10 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId)
      
      createTitle(guide)
     
+    -- Force highlighting immediately after everything is created
+    if GLV.QuestTracker then
+        GLV.QuestTracker:RefreshHighlighting()
+    end
+    
+    if callback then callback() end
 end
