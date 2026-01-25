@@ -34,6 +34,9 @@ local CONFIG = {
     titleFrame = GLV_MainLoadedGuideTitle
 }
 
+-- Reusable FontString for text measurement (performance optimization)
+local measureFontString = nil
+
 
 --[[ UI CREATION FUNCTIONS ]]--
 
@@ -52,15 +55,20 @@ local function wrapText(inputText, maxWidth, font)
         if segment and segment ~= "" then table.insert(segments, segment) end
     end
 
-    local tempText = UIParent:CreateFontString(nil,"OVERLAY",font or "GameFontNormalSmall")
+    -- Reuse FontString instead of creating new one each time (performance)
+    if not measureFontString then
+        measureFontString = UIParent:CreateFontString(nil, "OVERLAY", font or "GameFontNormalSmall")
+        measureFontString:Hide()
+    end
+
     for i, segment in ipairs(segments) do
         local currentLine = ""
         local words = {}
         for word in string.gfind(segment, "[%S]+") do table.insert(words, word) end
         for j, word in ipairs(words) do
             local testLine = currentLine == "" and word or currentLine.." "..word
-            tempText:SetText(testLine)
-            if tempText:GetStringWidth() <= maxWidth then
+            measureFontString:SetText(testLine)
+            if measureFontString:GetStringWidth() <= maxWidth then
                 currentLine = testLine
             else
                 wrappedText = wrappedText..(wrappedText=="" and "" or "\n")..currentLine
@@ -77,9 +85,7 @@ local function wrapText(inputText, maxWidth, font)
             lineCount = lineCount + 1
         end
     end
-    local textHeight = tempText:GetHeight() * lineCount
-    tempText:Hide()
-    tempText:SetParent(nil)
+    local textHeight = measureFontString:GetHeight() * lineCount
     return wrappedText, lineCount, textHeight
 end
 

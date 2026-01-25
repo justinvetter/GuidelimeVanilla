@@ -25,7 +25,7 @@ function TaxiTracker:Init()
     local knownTaxiNodes = GLV.Settings:GetOption({"TaxiTracker", "KnownTaxiNodes"}) or {}
     self.knownTaxiNodes = knownTaxiNodes
     
-    -- Debug: afficher les points de vol connus au chargement
+    -- Debug: display known flight paths on load
     if GLV.Debug then
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Loaded " .. self:CountKnownNodes() .. " known taxi nodes")
     end
@@ -54,7 +54,7 @@ function TaxiTracker:CheckForNewFlightPaths()
         if name and (nodeType == "CURRENT" or nodeType == "REACHABLE") then
             newNodes[name] = true
             
-            -- Vérifier si c'est un nouveau nœud
+            -- Check if this is a new node
             if not self.knownTaxiNodes[name] then
                 if GLV.Debug then
                     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r New flight path discovered: " .. name)
@@ -76,12 +76,14 @@ function TaxiTracker:CheckForNewFlightPaths()
 end
 
 function TaxiTracker:OnFlightPathDiscovered(flightPathName, nodeIndex)
-    GLV.Ace:Print("TaxiTracker", "Flight path discovered: " .. flightPathName .. " (index: " .. nodeIndex .. ")")
-    
-    -- Déclencher l'événement avec les détails
+    if GLV.Debug then
+        GLV.Ace:Print("TaxiTracker", "Flight path discovered: " .. flightPathName .. " (index: " .. nodeIndex .. ")")
+    end
+
+    -- Trigger event with details
     self:TriggerEvent("GLV_FLIGHT_PATH_DISCOVERED", flightPathName, nodeIndex)
-    
-    -- NOUVELLE FONCTIONNALITÉ: Auto-complétion des étapes de guide
+
+    -- Auto-complete guide steps for this flight path
     self:CheckAndCompleteGuideSteps(flightPathName)
 end
 
@@ -96,43 +98,52 @@ function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local hasCompletedStep = false
     
-    GLV.Ace:Print("TaxiTracker", "Checking guide steps for flight path: " .. flightPathName)
-    
-    -- Parcourir toutes les étapes du guide actuel
+    if GLV.Debug then
+        GLV.Ace:Print("TaxiTracker", "Checking guide steps for flight path: " .. flightPathName)
+    end
+
+    -- Iterate through all steps in the current guide
     for displayIndex, stepData in ipairs(GLV.CurrentDisplaySteps) do
         if stepData.hasCheckbox and stepData.lines then
             for _, line in ipairs(stepData.lines) do
-                -- Chercher les étapes qui mentionnent ce point de vol
+                -- Look for steps that mention this flight path
                 if line.text and line.stepType == "GET_FP" then
-                    -- Extraire le nom du point de vol de l'étape
+                    -- Extract the flight path name from the step
                     local stepFlightPath = line.destination
                     
                     if stepFlightPath and self:IsFlightPathMatch(stepFlightPath, flightPathName) then
-                        GLV.Ace:Print("TaxiTracker", "Found matching step for flight path: " .. stepFlightPath .. " -> " .. flightPathName)
-                        
-                        -- Obtenir l'index original de cette étape
+                        if GLV.Debug then
+                            GLV.Ace:Print("TaxiTracker", "Found matching step for flight path: " .. stepFlightPath .. " -> " .. flightPathName)
+                        end
+
+                        -- Get the original index for this step
                         local originalIndex = GLV.CurrentDisplayToOriginal[displayIndex]
                         
                         if originalIndex and not stepState[originalIndex] then
-                            -- Marquer l'étape comme complétée
+                            -- Mark step as completed
                             stepState[originalIndex] = true
                             GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-                            
-                            -- Mettre à jour visuellement la checkbox
-                            local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
-                            local stepFrame = getglobal(stepFrameName)
-                            if stepFrame then
-                                local checkbox = getglobal(stepFrameName .. "Check")
-                                if checkbox then
-                                    checkbox:SetChecked(true)
-                                    GLV.Ace:Print("TaxiTracker", "Auto-checked step " .. displayIndex .. " for flight path: " .. flightPathName)
+
+                            -- Update checkbox visually
+                            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
+                            if scrollChild then
+                                local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..displayIndex
+                                local stepFrame = getglobal(stepFrameName)
+                                if stepFrame then
+                                    local checkbox = getglobal(stepFrameName .. "Check")
+                                    if checkbox then
+                                        checkbox:SetChecked(true)
+                                        if GLV.Debug then
+                                            GLV.Ace:Print("TaxiTracker", "Auto-checked step " .. displayIndex .. " for flight path: " .. flightPathName)
+                                        end
+                                    end
                                 end
                             end
-                            
+
                             hasCompletedStep = true
-                            
-                            -- Message dans le chat
-                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Étape auto-complétée : Point de vol " .. flightPathName)
+
+                            -- Chat message
+                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed step: Flight path " .. flightPathName)
                         end
                     end
                 end
@@ -140,7 +151,7 @@ function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
         end
     end
     
-    -- Si une étape a été complétée, mettre à jour l'étape active
+    -- If a step was completed, update the active step
     if hasCompletedStep then
         self:UpdateActiveStep()
     end
@@ -148,21 +159,21 @@ end
 
 function TaxiTracker:IsFlightPathMatch(stepName, discoveredName)
     if not stepName or not discoveredName then return false end
-    
+
     local stepLower = string.lower(stepName)
     local discoveredLower = string.lower(discoveredName)
-    
-    -- Correspondance exacte
+
+    -- Exact match
     if stepLower == discoveredLower then
         return true
     end
-    
-    -- Correspondance partielle (l'un contient l'autre)
+
+    -- Partial match (one contains the other)
     if string.find(stepLower, discoveredLower) or string.find(discoveredLower, stepLower) then
         return true
     end
-    
-    -- Correspondances spécifiques pour gérer les variations de noms
+
+    -- Specific aliases to handle name variations
     local aliases = {
         ["stormwind"] = {"stormwind city", "stormwind keep"},
         ["ironforge"] = {"ironforge city"},
@@ -190,8 +201,8 @@ function TaxiTracker:UpdateActiveStep()
     local currentGuideId = guide.id or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-    
-    -- Trouver la prochaine étape non complétée
+
+    -- Find the next uncompleted step
     local newActiveStep = currentActiveStep
     local totalSteps = table.getn(GLV.CurrentDisplaySteps)
     
@@ -205,22 +216,18 @@ function TaxiTracker:UpdateActiveStep()
         end
     end
     
-    -- Si une nouvelle étape active a été trouvée, la mettre à jour
+    -- If a new active step was found, update it
     if newActiveStep ~= currentActiveStep then
         GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
         GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(totalSteps)..")")
-        
-        -- Mettre à jour les couleurs visuelles
-        for i = 1, totalSteps do
-            local stepFrameName = GLV_MainScrollFrameScrollChild:GetName() .. "Step" .. currentGuideId .. "_" .. i
-            local stepFrame = getglobal(stepFrameName)
-            if stepFrame and stepFrame.SetBackdropColor then
-                local color = (i == newActiveStep) and {0.8,0.8,0.2,0.9} or (isEven(i) and {0.2,0.2,0.2,0.8} or {0.1,0.1,0.1,0.8})
-                stepFrame:SetBackdropColor(unpack(color))
-            end
+
+        -- Update visual colors using unified highlighting system
+        local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
+        if scrollChild and GLV.updateStepColors and GLV.CurrentDisplaySteps then
+            GLV.updateStepColors(scrollChild, currentGuideId, GLV.CurrentDisplaySteps, newActiveStep)
         end
-        
-        -- Scroll vers la nouvelle étape active
+
+        -- Scroll to the new active step
         if GLV_MainScrollFrame and newActiveStep > 0 then
             GLV.Ace:ScheduleEvent(function()
                 if GLV_MainScrollFrame then
@@ -248,14 +255,18 @@ function TaxiTracker:UpdateActiveStep()
             end, 0.5)
         end
         
-        GLV.Ace:Print("TaxiTracker", "Updated active step to: " .. newActiveStep)
+        if GLV.Debug then
+            GLV.Ace:Print("TaxiTracker", "Updated active step to: " .. newActiveStep)
+        end
     end
 end
 
--- Fonctions utilitaires
+-- Utility functions
 function TaxiTracker:SaveKnownTaxiNodes()
     GLV.Settings:SetOption(self.knownTaxiNodes, {"TaxiTracker", "KnownTaxiNodes"})
-    GLV.Ace:Print("TaxiTracker", "Saved " .. self:CountKnownNodes() .. " known taxi nodes")
+    if GLV.Debug then
+        GLV.Ace:Print("TaxiTracker", "Saved " .. self:CountKnownNodes() .. " known taxi nodes")
+    end
 end
 
 function TaxiTracker:CountKnownNodes()

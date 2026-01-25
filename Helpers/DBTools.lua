@@ -78,14 +78,14 @@ end
 
 -- Get NPC name by unit ID
 function GLV:getTargetName(id)
-    npcName = "UNKNOWN_NAME"
+    local npcName = "UNKNOWN_NAME"
     local Localized = getLocalizedKey()
-    if not VGDB or not VGDB["units"] or not VGDB["units"][Localized] then 
+    if not VGDB or not VGDB["units"] or not VGDB["units"][Localized] then
         return npcName
     end
 
     npcName = VGDB["units"][Localized][tonumber(id)]
-    return npcName
+    return npcName or "UNKNOWN_NAME"
 end
 
 -- Get NPC coordinates by unit ID
@@ -130,20 +130,36 @@ end
 
 --[[ QUEST RELATED FUNCTIONS ]]--
 
--- Get quest ID by quest name
+-- Cache for quest name to ID lookups (performance optimization)
+local questNameCache = {}
+
+-- Get quest ID by quest name (with caching)
 function GLV:GetQuestIDByName(name)
+    if not name then return nil end
+
+    -- Check cache first
+    if questNameCache[name] then
+        return questNameCache[name]
+    end
+
     local Localized = getLocalizedKey()
     if not VGDB or not VGDB.quests or not VGDB.quests[Localized] then
         return nil
     end
-    
+
     for id, data in pairs(VGDB.quests[Localized]) do
         if data and data.T and data.T == name then
+            questNameCache[name] = id
             return id
         end
     end
-    
+
     return nil
+end
+
+-- Clear quest name cache (call when locale changes)
+function GLV:ClearQuestNameCache()
+    questNameCache = {}
 end
 
 -- Get quest name by quest ID
@@ -168,18 +184,23 @@ end
 
 -- Get quest level by quest ID
 function GLV:GetQuestLevelByID(id)
-    if not VGDB or not VGDB.quests then
-        return "UNKNOWN_QUEST"
+    if not VGDB or not VGDB.quests or not VGDB.quests["data"] then
+        return nil
     end
 
     local numId = tonumber(id)
     if not numId then
-        return "UNKNOWN_QUEST"
+        return nil
     end
 
-    local questLevel = VGDB.quests["data"][tonumber(numId)].lvl
-    if not questLevel or questLevel == "UNKNOWN" then
-        return "UNKNOWN_QUEST"
+    local questData = VGDB.quests["data"][numId]
+    if not questData then
+        return nil
+    end
+
+    local questLevel = questData.lvl
+    if not questLevel then
+        return nil
     end
 
     return questLevel
@@ -340,38 +361,14 @@ function GLV:GetQuestAllCoords(id, questPart, onlyObjective)
                             end
                         end
                         
-                        -- local playerX, playerY = GetPlayerMapPosition("player")
-                        -- if not playerX or not playerY then
-                        --     playerX, playerY = GetPlayerMapPosition("player")
-                        -- end
                         local bestUnit = nil
-                        -- local bestDistance = 999999
                         local bestUnits = {}
 
                         for unitID, dropChance in pairs(units) do
-                            local bestUnit, nearest = findClosestUnit(unitID, questZone)
-                            if bestUnit and nearest then
-                                table.insert(bestUnits, {unit = bestUnit, nearest = nearest })
+                            local closestUnit, nearest = findClosestUnit(unitID, questZone)
+                            if closestUnit and nearest then
+                                table.insert(bestUnits, {unit = closestUnit, nearest = nearest })
                             end
-                                -- if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
-                                --     if not questZone or (coordSet[3] and questZone and coordSet[3] == questZone) then
-                                --         local x, y = (playerX * 100) - coordSet[1], (playerY * 100) - coordSet[2]
-                                --         local distance = math.sqrt(x * x + y * y)
-                                        
-                                --         if distance < bestDistance then
-                                --             bestDistance = distance
-                                --             bestUnit = {
-                                --                 type = "objective",
-                                --                 itemId = targetItemID,
-                                --                 npcId = unitID,
-                                --                 x = coordSet[1],
-                                --                 y = coordSet[2],
-                                --                 z = coordSet[3],
-                                --                 note = "Unit that loots this item (same zone, closest)"
-                                --             }
-                                --         end
-                                --     end
-                                -- end
                         end
 
                         table.sort(bestUnits, function(a, b) return a.nearest < b.nearest end)

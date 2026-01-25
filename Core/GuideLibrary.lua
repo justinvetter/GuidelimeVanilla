@@ -23,8 +23,6 @@ function GLV:RegisterGuide(guideText, group)
     if not guide then
         return
     end
-    
-    -- Note: scrollChild is checked later in the function
 
     if not self.loadedGuides[group] then
         self.loadedGuides[group] = {}
@@ -39,9 +37,11 @@ function GLV:RegisterGuide(guideText, group)
                 maxLevel = guide.maxLevel,
                 description = guide.description
             }
-            
+
             self.Settings:SetOption(group, {"Guide", "CurrentGroup"})
-            
+
+            -- Populate dropdown if scroll child exists
+            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
             if scrollChild then
                 self:PopulateDropdown(group)
             end
@@ -78,7 +78,7 @@ function GLV:PopulateDropdown(group)
         
         if totalGuides == 0 then
             local info = {}
-            info.text = "Aucun guide disponible"
+            info.text = "No guides available"
             info.disabled = 1
             UIDropDownMenu_AddButton(info)
             return
@@ -239,7 +239,8 @@ function GLV:LoadGuide(group, guideId)
                 local success, err = pcall(function()
                     GLV.GuideNavigation:OnStepChanged(stepData)
                 end)
-                if not success then
+                if not success and GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GLV Error]|r Navigation: " .. tostring(err))
                 end
             end
         end

@@ -64,8 +64,6 @@ function QuestTracker:OnQuestLogUpdate()
             local questId = GLV:GetQuestIDByName(questLogTitleText)
             local numId = tonumber(questId)
 
-            GLV:GetQuestAllCoords()
-            
             if numId then
                 self:CheckQuestObjectives(questIndex, numId, questLogTitleText, isComplete)
             end
@@ -367,8 +365,8 @@ function QuestTracker:GetExpectedQuestIdFromCurrentStep(questTitle)
     
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-    
-    -- Chercher dans l'étape courante et les quelques étapes suivantes
+
+    -- Search in current step and a few steps ahead
     for offset = 0, 2 do
         local stepIndex = currentStepIndex + offset
         if stepIndex > 0 and stepIndex <= table.getn(GLV.CurrentDisplaySteps) then
@@ -377,7 +375,7 @@ function QuestTracker:GetExpectedQuestIdFromCurrentStep(questTitle)
             if step and step.questTags and table.getn(step.questTags) > 0 then
                 for _, questTag in ipairs(step.questTags) do
                     if questTag.tag == "ACCEPT" or questTag.tag == "TURNIN" then
-                        -- Vérifier si le nom correspond (comparaison flexible)
+                        -- Check if name matches (flexible comparison)
                         local questName = GLV:GetQuestNameByID(questTag.questId)
                         if questName and self:QuestNamesMatch(questTitle, questName) then
                             return questTag.questId
@@ -393,36 +391,35 @@ end
 
 function QuestTracker:QuestNamesMatch(title1, title2)
     if not title1 or not title2 then return false end
-    
-    -- Comparaison directe
+
+    -- Direct comparison
     if title1 == title2 then return true end
-    
-    -- Comparaison insensible à la casse
+
+    -- Case-insensitive comparison
     if string.lower(title1) == string.lower(title2) then return true end
-    
-    -- Comparaison en enlevant la ponctuation et espaces extras
+
+    -- Comparison removing punctuation and extra spaces
     local clean1 = string.gsub(string.lower(title1), "[%p%s]+", "")
     local clean2 = string.gsub(string.lower(title2), "[%p%s]+", "")
     if clean1 == clean2 then return true end
-    
+
     return false
 end
 
 function QuestTracker:VerifyQuestAfterAccept(expectedTitle, expectedId)
-    -- Vérifier que la quête est bien dans le journal avec le bon ID
+    -- Verify that the quest is in the journal with the correct ID
     GLV.Ace:ScheduleEvent("VerifyQuest", function()
         local numEntries, numQuests = GetNumQuestLogEntries()
-        
+
         for i = 1, numEntries do
             local questLogTitleText, level, questTag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(i)
-            
+
             if questLogTitleText and not isHeader and questLogTitleText == expectedTitle then
-                -- La quête est dans le journal
-                -- Vous pouvez ajouter d'autres vérifications ici si nécessaire
+                -- Quest is in the journal
                 return true
             end
         end
-        
+
         return false
     end, 0.5)
 end
@@ -434,13 +431,13 @@ end
 function HookQuestAccept()
     local title = GetTitleText()
     
-    -- Trouver l'ID de quête basé sur l'étape courante du guide
+    -- Find quest ID based on current guide step
     local correctQuestId = GLV.QuestTracker:GetExpectedQuestIdFromCurrentStep(title)
-    
+
     if correctQuestId then
         GLV.QuestTracker:TrackAccepted(correctQuestId, title)
     else
-        -- Fallback sur l'ancienne méthode
+        -- Fallback to legacy method
         local id = GLV:GetQuestIDByName(title)
         local numId = tonumber(id)
         if numId then
@@ -454,9 +451,8 @@ end
 -- Hook function for quest complete button
 function HookQuestComplete()
     local title = GetTitleText()
-    local id = nil
-    
-    -- Trouver l'ID de quête basé sur l'étape courante du guide
+
+    -- Find quest ID based on current guide step
     local id = GLV.QuestTracker:GetExpectedQuestIdFromCurrentStep(title)
 
     if not id then
