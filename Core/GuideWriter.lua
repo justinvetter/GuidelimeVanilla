@@ -252,11 +252,21 @@ end
 
 -- Update colors for all step frames (exposed globally for QuestTracker)
 local function updateStepColors(scrollChild, guideId, displaySteps, activeStepIndex)
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r updateStepColors called with activeStepIndex: " .. tostring(activeStepIndex) .. ", displaySteps count: " .. tostring(table.getn(displaySteps)))
+    end
+    
     for i = 1, table.getn(displaySteps) do
-        local frame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
+        local frameName = scrollChild:GetName().."Step"..guideId.."_"..i
+        local frame = getglobal(frameName)
         if frame and frame.SetBackdropColor then
             local col = (i == activeStepIndex) and CONFIG.colors.active or (isEven(i) and CONFIG.colors.even or CONFIG.colors.odd)
             frame:SetBackdropColor(unpack(col))
+            if GLV.Debug and i == activeStepIndex then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Applied active color to step " .. i .. " (frame: " .. frameName .. ")")
+            end
+        elseif GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Frame not found or no SetBackdropColor: " .. frameName)
         end
     end
 end
@@ -567,24 +577,76 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     local totalSteps = table.getn(displaySteps)
     local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
     
-    if activeStep == 0 then
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Initial activeStep: " .. tostring(activeStep) .. ", totalSteps: " .. tostring(totalSteps))
+    end
+    
+    if activeStep == 0 and totalSteps > 0 then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Need to calculate activeStep")
+        end
+        
+        -- First, try to find the first unchecked step
         for i2 = 1, totalSteps do
             if displaySteps[i2] and displaySteps[i2].hasCheckbox then
                 local orig = displayIndexToOriginalIndex[i2]
                 if orig and not stepState[orig] then
                     activeStep = i2
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Found first unchecked step: " .. i2)
+                    end
                     break
                 end
             end
         end
+        
+        -- If no unchecked step found (all completed), set to last step with checkbox
+        if activeStep == 0 then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r No unchecked steps, looking for last step with checkbox")
+            end
+            for i2 = totalSteps, 1, -1 do
+                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                    activeStep = i2
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Found last step with checkbox: " .. i2)
+                    end
+                    break
+                end
+            end
+        end
+        
+        -- Final fallback: if still no active step, use first step with checkbox
+        if activeStep == 0 then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Still no active step, using first step with checkbox")
+            end
+            for i2 = 1, totalSteps do
+                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                    activeStep = i2
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Using first step with checkbox: " .. i2)
+                    end
+                    break
+                end
+            end
+        end
+        
+        -- Save the calculated active step
         if activeStep > 0 then
             GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Saved activeStep: " .. activeStep)
+            end
         end
     end
     
     GLV_MainLoadedGuideCounter:SetText("("..tostring(activeStep).."/"..tostring(totalSteps)..")")
     
     -- Highlight active frame at initial render
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r About to call updateStepColors with activeStep: " .. tostring(activeStep))
+    end
     updateStepColors(scrollChild, guideId, displaySteps, activeStep)
     
     -- Set initial Guide Navigation waypoint
@@ -595,11 +657,11 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
         end
     end
     
-    -- Scroll to show the active step at the top (initial load)
+    -- Scroll to show the active step at the top
     if activeStep > 0 then
         GLV.Ace:ScheduleEvent(function()
             scrollToStep(activeStep, scrollChild, guideId, CONFIG.spacing)
-        end, 1)
+        end, 0.3)
     end
      
      createTitle(guide)

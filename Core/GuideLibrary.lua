@@ -183,7 +183,7 @@ function GLV:LoadGuide(group, guideId)
     local scrollFrame = _G["GLV_MainScrollFrame"]
     if scrollFrame then
         scrollFrame:UpdateScrollChildRect()
-        scrollFrame:SetVerticalScroll(0)
+        -- Don't reset scroll to 0 - let GuideWriter.lua handle the scroll position
     end
     
     local savedStepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
@@ -217,25 +217,9 @@ function GLV:LoadGuide(group, guideId)
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
         
         if not currentStep or currentStep == 0 then
-            -- No current step, find first unchecked
-            local firstUnchecked = 0
-            
-            -- Look for the first step that's not completed
-            for i = 1, table.getn(guide.steps) do
-                local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. i]
-                if stepFrame then
-                    local checkbox = _G[stepFrame:GetName() .. "Check"]
-                    if checkbox and not checkbox:GetChecked() then
-                        firstUnchecked = i
-                        break
-                    end
-                end
-            end
-            
-            -- Set firstUnchecked if we found a valid one
-            if firstUnchecked > 0 then
-                GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
-            end
+            -- Let GuideWriter.lua handle this in CreateGuideSteps - it has the proper logic
+            -- We just make sure the current step gets reset so CreateGuideSteps will calculate it
+            GLV.Settings:SetOption(0, {"Guide", "Guides", guideId, "CurrentStep"})
         end
     end
     
@@ -285,31 +269,7 @@ function GLV:LoadGuide(group, guideId)
         end, 0.1)
     end
     
-    -- Also schedule a scroll to current step after everything is loaded
-    local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
-    if currentStep > 0 then
-        GLV.Ace:ScheduleEvent(function()
-            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
-            local scrollFrame = _G["GLV_MainScrollFrame"]
-            if scrollChild and scrollFrame then
-                -- Find the current step frame
-                local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. currentStep]
-                if stepFrame then
-                    local frameTop = stepFrame:GetTop()
-                    local frameHeight = stepFrame:GetHeight()
-                    local scrollChildTop = scrollChild:GetTop()
-                    
-                    if frameTop and frameHeight and scrollChildTop then
-                        local relativePosition = scrollChildTop - frameTop
-                        local newScrollPosition = relativePosition - 50 -- Add some padding
-                        if newScrollPosition < 0 then newScrollPosition = 0 end
-                        
-                        scrollFrame:SetVerticalScroll(newScrollPosition)
-                    end
-                end
-            end
-        end, 0.2)
-    end
+    -- Let GuideWriter.lua handle the scroll positioning - it has better logic
 end
 
 
