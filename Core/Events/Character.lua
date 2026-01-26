@@ -4,7 +4,7 @@ Guidelime Vanilla
 Author: Grommey
 
 Description:
-Character events tracker (XP, Level, etc.)
+Character events tracker (XP, Level, Spells, ..)
 ]]--
 
 local GLV = LibStub("GuidelimeVanilla")
@@ -36,13 +36,18 @@ function CharacterTracker:OnPlayerXPUpdate()
     local currentXP = UnitXP("player")
       
     if currentLevel > self.previousPlayerLevel or (currentLevel == self.previousPlayerLevel and currentXP > self.previousPlayerXP) then
-        
+
         local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
-        
+
         self.previousPlayerLevel = currentLevel
         self.previousPlayerXP = currentXP
-        
+
         self:ManageXPTimer(hasXPReqs)
+
+        -- Update XP progress display on UI
+        if GLV.UpdateXPProgressDisplay then
+            GLV:UpdateXPProgressDisplay()
+        end
 
     end
 end
@@ -175,16 +180,91 @@ end
 function CharacterTracker:CheckForXPChanges()
     local currentLevel = UnitLevel("player")
     local currentXP = UnitXP("player")
-    
+
     if currentLevel ~= self.previousPlayerLevel or currentXP ~= self.previousPlayerXP then
-        
+
         local hasXPReqs, stepCompleted = self:CheckExperienceRequirements()
-        
+
         self.previousPlayerLevel = currentLevel
         self.previousPlayerXP = currentXP
-        
+
         self:ManageXPTimer(hasXPReqs)
+
+        -- Update XP progress display on UI
+        if GLV.UpdateXPProgressDisplay then
+            GLV:UpdateXPProgressDisplay()
+        end
     end
+end
+
+-- Get XP progress text for display (e.g., "(1250/1500)" or "(Level 3, 50%)")
+function CharacterTracker:GetXPProgress(experienceRequirement)
+    if not experienceRequirement then return nil end
+
+    local req = experienceRequirement
+    local playerLevel = UnitLevel("player")
+    local playerXP = UnitXP("player")
+    local playerMaxXP = UnitXPMax("player")
+
+    if req.type == "level" then
+        -- [XP4] - just show current level
+        if playerLevel >= req.targetLevel then
+            return "(Done)", true
+        else
+            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false
+        end
+
+    elseif req.type == "level_minus" then
+        -- [XP4-290] - grind until only 290 XP remains before level up
+        if playerLevel >= req.targetLevel then
+            return "(Done)", true
+        elseif playerLevel == (req.targetLevel - 1) then
+            local xpNeeded = playerMaxXP - playerXP  -- XP remaining to level up
+            if xpNeeded <= req.xpMinus then
+                return "(Done)", true
+            else
+                -- How much XP to grind to reach the target state
+                local xpToGrind = xpNeeded - req.xpMinus
+                return "(" .. xpToGrind .. " XP)", false
+            end
+        else
+            -- Not at target level - 1 yet, show level needed
+            return "(Lvl " .. playerLevel .. "/" .. (req.targetLevel - 1) .. ")", false
+        end
+
+    elseif req.type == "level_plus" then
+        -- [XP9+1000] - grind until you have 1000 XP into level 9
+        if playerLevel > req.targetLevel then
+            return "(Done)", true
+        elseif playerLevel == req.targetLevel then
+            if playerXP >= req.xpPlus then
+                return "(Done)", true
+            else
+                local xpToGrind = req.xpPlus - playerXP
+                return "(" .. xpToGrind .. " XP)", false
+            end
+        else
+            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false
+        end
+
+    elseif req.type == "level_percent" then
+        -- [XP3.5] - grind until you reach 50% into level 3
+        if playerLevel > req.targetLevel then
+            return "(Done)", true
+        elseif playerLevel == req.targetLevel then
+            local targetXP = math.floor((req.targetPercent / 100) * playerMaxXP)
+            if playerXP >= targetXP then
+                return "(Done)", true
+            else
+                local xpToGrind = targetXP - playerXP
+                return "(" .. xpToGrind .. " XP)", false
+            end
+        else
+            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false
+        end
+    end
+
+    return nil
 end
 
 -- Check if player meets XP requirements for current guide steps and mark completed ones
@@ -274,26 +354,21 @@ end
 -- Manage XP timer based on whether there are requirements to monitor
 function CharacterTracker:ManageXPTimer(hasXPRequirements)
     if hasXPRequirements then
-        if self.xpCheckTimer then
-            if not self.xpCheckTimer then
-                if GLV.Ace then
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Starting XP check timer")
-                    end
-                    self.xpCheckTimer = GLV.Ace:ScheduleRepeatingEvent("XPCheckUpdate", function() self:CheckForXPChanges() end, 2)
-                end
+        -- Start timer if not already running
+        if not self.xpCheckTimer and GLV.Ace then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Starting XP check timer")
             end
+            self.xpCheckTimer = GLV.Ace:ScheduleRepeatingEvent("XPCheckUpdate", function() self:CheckForXPChanges() end, 5)
         end
     else
-        if self.xpCheckTimer then
-            if not self.xpCheckTimer then
-                if GLV.Ace then
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Stopping XP check timer")
-                    end
-                    self.xpCheckTimer = GLV.Ace:CancelScheduledEvent("XPCheckUpdate")
-                end
+        -- Stop timer if running
+        if self.xpCheckTimer and GLV.Ace then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime XP]|r Stopping XP check timer")
             end
+            GLV.Ace:CancelScheduledEvent("XPCheckUpdate")
+            self.xpCheckTimer = nil
         end
     end
 end

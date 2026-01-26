@@ -104,6 +104,28 @@ function modulo(val, by)
     return val - math.floor(val/by)*by;
 end
 
+--[[ FRAME UTILITY FUNCTIONS ]]--
+
+-- Get scroll child frame (standardized access)
+function GLV:GetScrollChild()
+    return _G["GLV_MainScrollFrameScrollChild"]
+end
+
+-- Generate step frame name (standardized naming)
+function GLV:GetStepFrameName(scrollChild, guideId, index)
+    if not scrollChild then return nil end
+    return scrollChild:GetName() .. "Step" .. guideId .. "_" .. index
+end
+
+-- Get step frame by index
+function GLV:GetStepFrame(guideId, index)
+    local scrollChild = self:GetScrollChild()
+    if not scrollChild then return nil end
+    local frameName = self:GetStepFrameName(scrollChild, guideId, index)
+    return getglobal(frameName)
+end
+
+
 --[[ STRING UTILITY FUNCTIONS ]]--
 
 -- Split a string by delimiter (compatible with WoW's strsplit)

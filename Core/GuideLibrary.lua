@@ -9,6 +9,7 @@ A Guide is another Addon, and every lua (guides) file must begins with :
 local GLV = LibStub("GuidelimeVanilla")
 GLV:RegisterGuide(TEXT GUIDE, "Group Name")
 ]]--
+local _G = _G or getfenv(0)
 local GLV = LibStub("GuidelimeVanilla")
 
 GLV.loadedGuides = GLV.loadedGuides or {}
@@ -21,10 +22,6 @@ function GLV:RegisterGuide(guideText, group)
     local guide = self.Parser:parseGuide(guideText, group)
     if not guide then
         return
-    end
-    
-    local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
-    if not scrollChild then
     end
 
     if not self.loadedGuides[group] then
@@ -40,9 +37,11 @@ function GLV:RegisterGuide(guideText, group)
                 maxLevel = guide.maxLevel,
                 description = guide.description
             }
-            
+
             self.Settings:SetOption(group, {"Guide", "CurrentGroup"})
-            
+
+            -- Populate dropdown if scroll child exists
+            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
             if scrollChild then
                 self:PopulateDropdown(group)
             end
@@ -79,7 +78,7 @@ function GLV:PopulateDropdown(group)
         
         if totalGuides == 0 then
             local info = {}
-            info.text = "Aucun guide disponible"
+            info.text = "No guides available"
             info.disabled = 1
             UIDropDownMenu_AddButton(info)
             return
@@ -92,7 +91,28 @@ function GLV:PopulateDropdown(group)
                 groupInfo.disabled = 1
                 UIDropDownMenu_AddButton(groupInfo)
                 
+                -- Create a sorted list of guides by minLevel then by name
+                local sortedGuides = {}
                 for guideId, guideData in pairs(guides) do
+                    table.insert(sortedGuides, {id = guideId, data = guideData})
+                end
+                
+                -- Sort by minLevel first, then by name
+                table.sort(sortedGuides, function(a, b)
+                    local aMinLevel = tonumber(a.data.minLevel) or 0
+                    local bMinLevel = tonumber(b.data.minLevel) or 0
+                    
+                    if aMinLevel ~= bMinLevel then
+                        return aMinLevel < bMinLevel
+                    else
+                        return (a.data.name or "") < (b.data.name or "")
+                    end
+                end)
+                
+                -- Add sorted guides to dropdown
+                for _, guideEntry in pairs(sortedGuides) do
+                    local guideId = guideEntry.id
+                    local guideData = guideEntry.data
                     local info = {}
                     local displayName = guideData.name
                     if guideData.minLevel and guideData.maxLevel then
@@ -163,7 +183,7 @@ function GLV:LoadGuide(group, guideId)
     local scrollFrame = _G["GLV_MainScrollFrame"]
     if scrollFrame then
         scrollFrame:UpdateScrollChildRect()
-        scrollFrame:SetVerticalScroll(0)
+        -- Don't reset scroll to 0 - let GuideWriter.lua handle the scroll position
     end
     
     local savedStepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
@@ -175,7 +195,7 @@ function GLV:LoadGuide(group, guideId)
                 local foundStep = false
                 for displayIndex, originalIndex in pairs(GLV.CurrentDisplayToOriginal) do
                     if originalIndex == stepIndex then
-                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. displayIndex]
+                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. guideId .. "_" .. displayIndex]
                         if stepFrame then
                             local checkbox = _G[stepFrame:GetName() .. "Check"]
                             if checkbox then
@@ -192,66 +212,14 @@ function GLV:LoadGuide(group, guideId)
     
     if savedCurrentStep > 0 then
         GLV.Settings:SetOption(savedCurrentStep, {"Guide", "Guides", guideId, "CurrentStep"})
-        if GLV.QuestTracker then
-            GLV.QuestTracker:RefreshHighlighting()
-        end
     else
         -- Only calculate first unchecked if we don't have a saved step
-        -- and if we really need to change the current step
         local currentStep = GLV.Settings:GetOption({"Guide", "Guides", guideId, "CurrentStep"}) or 0
         
-        if currentStep == 0 then
-            -- No current step, find first unchecked
-            local firstUnchecked = 0
-            
-            -- Look for the first step that's not completed
-            for i = 1, table.getn(guide.steps) do
-                local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
-                if stepFrame then
-                    local checkbox = _G[stepFrame:GetName() .. "Check"]
-                    if checkbox and not checkbox:GetChecked() then
-                        firstUnchecked = i
-                        break
-                    end
-                end
-            end
-            
-            -- Set firstUnchecked if we found a valid one
-            if firstUnchecked > 0 then
-                GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
-            end
-        else
-            -- We have a current step, verify it's still valid
-            local stepState = GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"}) or {}
-            local diToOrig = GLV.CurrentDisplayToOriginal or {}
-            
-            if diToOrig[currentStep] then
-                local origIdx = diToOrig[currentStep]
-                local stepCompleted = stepState[origIdx]
-                
-                if stepCompleted then
-                    -- Current step is completed, find next valid step
-                    local firstUnchecked = 0
-                    for i = 1, table.getn(guide.steps) do
-                        local stepFrame = _G[scrollChild:GetName() .. "Step" .. i]
-                        if stepFrame then
-                            local checkbox = _G[stepFrame:GetName() .. "Check"]
-                            if checkbox and not checkbox:GetChecked() then
-                                firstUnchecked = i
-                                break
-                            end
-                        end
-                    end
-                    
-                    if firstUnchecked > 0 then
-                        GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", guideId, "CurrentStep"})
-                    end
-                end
-            end
-        end
-        
-        if GLV.QuestTracker then
-            GLV.QuestTracker:RefreshHighlighting()
+        if not currentStep or currentStep == 0 then
+            -- Let GuideWriter.lua handle this in CreateGuideSteps - it has the proper logic
+            -- We just make sure the current step gets reset so CreateGuideSteps will calculate it
+            GLV.Settings:SetOption(0, {"Guide", "Guides", guideId, "CurrentStep"})
         end
     end
     
@@ -271,14 +239,11 @@ function GLV:LoadGuide(group, guideId)
                 local success, err = pcall(function()
                     GLV.GuideNavigation:OnStepChanged(stepData)
                 end)
-                if not success then
+                if not success and GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[GLV Error]|r Navigation: " .. tostring(err))
                 end
             end
         end
-    end
-    
-    if GLV.QuestTracker then
-        GLV.QuestTracker:RefreshHighlighting()
     end
     
     if GLV.CharacterTracker then
@@ -297,29 +262,9 @@ function GLV:LoadGuide(group, guideId)
             UIDropDownMenu_SetText(displayName, dropdown)
         end
     end
+    
+    -- CreateGuideSteps already handles highlighting via updateStepColors
 end
 
 
---[[ DEBUG FUNCTIONS ]]--
-
--- Debug command to display loaded guides information
-function GLV:DebugGuides()
-    if not self.loadedGuides then
-        return
-    end
-    
-    local totalGroups = 0
-    local totalGuides = 0
-    
-    for group, guides in pairs(self.loadedGuides) do
-        totalGroups = totalGroups + 1
-        
-        if guides then
-            local groupGuideCount = 0
-            for guideId, guideData in pairs(guides) do
-                groupGuideCount = groupGuideCount + 1
-                totalGuides = totalGuides + 1
-            end
-        end
-    end
-end
+-- Debug functions removed - were unused

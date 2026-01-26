@@ -24,7 +24,6 @@ local codes = {
     QT  = "TURNIN",
     QS  = "SKIP",
     G   = "GOTO",
-    L   = "LOCATION",
     XP  = "EXPERIENCE",
     CI  = "COLLECT_ITEM",
     TAR = "TARGET_ID",
@@ -36,6 +35,7 @@ local codes = {
     H   = "HEARTHSTONE",
     S   = "BIND_HEARTHSTONE",
     UI  = "USE_ITEM",
+    P   = "GET_FLIGHT_PATH",
 }
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
@@ -59,7 +59,7 @@ function Parser:ParseExperienceRequirement(xpString)
     
     -- Extract only the numeric part at the beginning of the string
     -- [XP3] or [XP4-290 Grind text] or [XP3.5 Some text]
-    local numericPart, textPart = string.match(xpString, "^([%d%.%-]+)(.*)")
+    local numericPart, textPart = string.match(xpString, "^([%d%.%-%+]+)(.*)")
     if not numericPart then
         return nil
     end
@@ -275,6 +275,16 @@ function Parser:parseGuide(guide, group)
                                 return "|c" .. GLV.Colors[tag] .. xpData.text .. "|r"
                             end
 
+                        elseif tag == "GET_FLIGHT_PATH" then
+                            local flightPathName = self:GetFlightPathInfo(tagContent)
+                            parsedLine.stepType = "GET_FP"
+                            parsedLine.hasCheckbox = true
+                            parsedLine.icon = "Interface\\Icons\\Ability_Mount_GriffonMount"
+                            parsedLine.destination = flightPathName
+                            
+                            local fullText = "|c" .. GLV.Colors[tag] .. flightPathName .. "|r"
+                            return fullText
+
                         end
 
                         return "[" .. code .. "]"
@@ -284,6 +294,13 @@ function Parser:parseGuide(guide, group)
                         stepText = line
                     end
                     parsedLine.text = stepText
+
+                    -- Check if this is an equip step (original line contains "Equip" and has useItemId)
+                    if parsedLine.useItemId and string.find(string.lower(line), "equip") then
+                        parsedLine.equipItemId = tonumber(parsedLine.useItemId)
+                        parsedLine.stepType = "EQUIP"
+                        parsedLine.hasCheckbox = true
+                    end
 
                 else
                     parsedLine = {
@@ -390,6 +407,15 @@ function Parser:GetItemTexture(content)
         return ""
     end
     return itemTexture
+end
+
+function Parser:GetFlightPathInfo(content)
+    local flightPathName = string.gsub(content, "^%s*(.-)%s*$", "%1")
+    if flightPathName == "" then
+        flightPathName = "Unknown Flight Path"
+    end
+    
+    return flightPathName
 end
 
 --[[ FILTERING AND REPLACEMENT FUNCTIONS ]]--
