@@ -232,27 +232,26 @@ function Parser:parseGuide(guide, group)
                             questTitle, questId, questCoords = self:GetQuestInfo(tagContent)
                             parsedLine.questId = tonumber(questId)
                             parsedLine.hasCheckbox = true
-                            
+
+                            -- Inline icons: |Tpath:height|t embeds texture in text
                             if tag == "ACCEPT" then
                                 parsedLine.stepType = "ACCEPT"
-                                fullText = "\nAccept "
-                                parsedLine.icon = "Interface\\GossipFrame\\AvailableQuestIcon"
+                                fullText = "\n|TInterface\\GossipFrame\\AvailableQuestIcon:12|t Accept "
                             elseif tag == "TURNIN" then
                                 parsedLine.stepType = "TURNIN"
-                                fullText = "\nTurnin "
-                                parsedLine.icon = "Interface\\GossipFrame\\ActiveQuestIcon"
+                                fullText = "\n|TInterface\\GossipFrame\\ActiveQuestIcon:12|t Turnin "
                             elseif tag == "COMPLETE" then
                                 parsedLine.stepType = "COMPLETE"
                                 fullText = "\nComplete "
                             end
-                            
+
                             if not parsedLine.questTags then parsedLine.questTags = {} end
                             table.insert(parsedLine.questTags, {
                                 tag = tag,
                                 questId = tonumber(questId),
                                 title = questTitle
                             })
-                            
+
                             if questCoords and table.getn(questCoords) > 0 then
                                 parsedLine.coords = questCoords
                             end
