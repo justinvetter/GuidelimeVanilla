@@ -20,6 +20,10 @@ local CONFIG = {
     }
 }
 
+-- Throttle control for quest log updates
+local lastQuestLogUpdate = 0
+local QUEST_LOG_UPDATE_THROTTLE = 0.5 -- Only process once per 0.5 seconds
+
 -- Initialize quest tracking, hook original functions and register event handlers
 function QuestTracker:Init()
     local store = GLV.Settings:GetOption({"QuestTracker"}) or {}
@@ -46,20 +50,27 @@ end
 
 -- Handle quest log updates and check for completed objectives
 function QuestTracker:OnQuestLogUpdate()
+    -- Throttle: only process once per QUEST_LOG_UPDATE_THROTTLE seconds
+    local currentTime = GetTime()
+    if currentTime - lastQuestLogUpdate < QUEST_LOG_UPDATE_THROTTLE then
+        return
+    end
+    lastQuestLogUpdate = currentTime
+
     if not GLV.CurrentDisplaySteps then
         return
     end
-    
+
     local autoObjectiveTracking = GLV.Settings:GetOption({"QuestTracker", "AutoObjectiveTracking"}) or true
     if autoObjectiveTracking == false then
         return
     end
-    
+
     local numEntries, numQuests = GetNumQuestLogEntries()
     
     for questIndex = 1, numEntries do
         local questLogTitleText, level, questTag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(questIndex)
-        
+
         if questLogTitleText and not isHeader then
             local questId = GLV:GetQuestIDByName(questLogTitleText)
             local numId = tonumber(questId)
@@ -69,10 +80,58 @@ function QuestTracker:OnQuestLogUpdate()
             end
         end
     end
+
+    -- Update quest progress display on guide steps
+    if GLV.UpdateQuestProgressDisplay then
+        GLV:UpdateQuestProgressDisplay()
+    end
 end
 
 
 --[[ OBJECTS FUNCTIONS ]]--
+
+-- Get quest progress text for display (full objectives on separate lines)
+function QuestTracker:GetQuestProgress(questId)
+    if not questId then return nil end
+
+    local numEntries = GetNumQuestLogEntries()
+
+    for questIndex = 1, numEntries do
+        local questLogTitleText, level, questTag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(questIndex)
+
+        if questLogTitleText and not isHeader then
+            local logQuestId = GLV:GetQuestIDByName(questLogTitleText)
+            if tonumber(logQuestId) == tonumber(questId) then
+                SelectQuestLogEntry(questIndex)
+                local numObjectives = GetNumQuestLeaderBoards()
+
+                if numObjectives == 0 then
+                    return nil, true, 0
+                end
+
+                local objectives = {}
+                local allComplete = true
+
+                for i = 1, numObjectives do
+                    local description, objectiveType, isCompleted = GetQuestLogLeaderBoard(i)
+                    if description then
+                        table.insert(objectives, {
+                            text = description,
+                            completed = isCompleted
+                        })
+                        if not isCompleted then
+                            allComplete = false
+                        end
+                    end
+                end
+
+                return objectives, allComplete, numObjectives
+            end
+        end
+    end
+
+    return nil, false, 0
+end
 
 -- Check objectives for a specific quest and handle completion
 function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isComplete)
@@ -137,69 +196,68 @@ end
 
 -- Centralized function to handle quest actions (accept, complete, turnin)
 function QuestTracker:HandleQuestAction(questId, title, actionType)
-    
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local stepQuestState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepQuestState"}) or {}
-    
+
     local stepMarked = false
     local multiActionStepFound = false
-    
+
     if not GLV.CurrentDisplaySteps then
         return
     end
-    
+
     local diCount = GLV.CurrentDisplayStepsCount or 0
     local diToOrig = GLV.CurrentDisplayToOriginal or {}
-    
+
     for di = 1, diCount do
         local step = GLV.CurrentDisplaySteps[di]
         local origIdx = diToOrig[di]
-        
+
         if step and origIdx then
-            
+
             if step.questTags and table.getn(step.questTags) > 0 then
                 if not stepQuestState[origIdx] then
                     stepQuestState[origIdx] = {}
                 end
-                
+
                 local hasMatchingAction = false
                 local allActionsDone = true
-                
+
                 for _, questTag in ipairs(step.questTags) do
                     local actionKey = questTag.questId .. "_" .. questTag.tag
-                    
+
                     if questTag.tag == actionType and questTag.questId == questId then
                         stepQuestState[origIdx][actionKey] = true
                         hasMatchingAction = true
                         multiActionStepFound = true
                     end
-                    
+
                     if not stepQuestState[origIdx][actionKey] then
                         allActionsDone = false
                     end
                 end
-                
+
                 if hasMatchingAction then
                     GLV.Settings:SetOption(stepQuestState, {"Guide","Guides", currentGuideId, "StepQuestState"})
-                    
+
                     if allActionsDone then
                         stepState[origIdx] = true
                         stepMarked = true
                     end
-                    
+
                     break
                 end
             end
         end
     end
-    
+
     if stepMarked then
         GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
     end
-    
+
     self:UpdateStepNavigation(stepMarked, multiActionStepFound)
-    
+
     if GLV.CharacterTracker then
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
     end
@@ -210,19 +268,19 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local stepQuestState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepQuestState"}) or {}
-    
+
     local diCount = GLV.CurrentDisplayStepsCount or 0
     local hasCb = GLV.CurrentDisplayHasCheckbox or {}
     local diToOrig = GLV.CurrentDisplayToOriginal or {}
-    
+
     local firstUnchecked = 0
-    
+
     for di = 1, diCount do
         if hasCb[di] then
             local origIdx = diToOrig[di]
             if origIdx then
                 local stepCompleted = stepState[origIdx]
-                
+
                 if not stepCompleted then
                     local step = GLV.CurrentDisplaySteps[di]
                     if step and step.questTags and table.getn(step.questTags) > 1 and stepQuestState[origIdx] then
@@ -239,7 +297,7 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
                         end
                     end
                 end
-                
+
                 if not stepCompleted then
                     firstUnchecked = di
                     break
@@ -247,54 +305,23 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
             end
         end
     end
-    
+
     GLV.Settings:SetOption(firstUnchecked, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-    
-    if firstUnchecked > 0 then
+
+    -- Use RefreshGuide to rebuild UI with correct checkbox states
+    -- This is more reliable than trying to update checkboxes manually
+    -- RefreshGuide has built-in debounce to prevent multiple rapid rebuilds
+    if stepMarked and GLV.RefreshGuide then
+        GLV:RefreshGuide()
+    else
+        -- Just update highlighting if no step was marked
         local scrollChild = GLV_MainScrollFrameScrollChild
-        if scrollChild then
-            for di = 1, diCount do
-                if hasCb[di] then
-                    local origIdx = diToOrig[di]
-                    if origIdx and stepState[origIdx] then
-                        local frameName = scrollChild:GetName().."Step"..currentGuideId.."_"..di
-                        local check = getglobal(frameName.."Check")
-                        if check and check.SetChecked then
-                            check:SetChecked(true)
-                        end
-                    end
-                end
-            end
-            
-            -- Use the unified highlighting system
+        if scrollChild and firstUnchecked > 0 then
             if GLV.CurrentDisplaySteps and GLV.updateStepColors then
                 GLV.updateStepColors(scrollChild, currentGuideId, GLV.CurrentDisplaySteps, firstUnchecked)
-            else
-                -- Fallback highlighting
-                self:RefreshHighlighting()
             end
-            
-            if firstUnchecked > 0 and GLV_MainScrollFrame then
-                local targetScroll = 0
-                for i = 1, firstUnchecked - 1 do
-                    local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..i
-                    local stepFrame = getglobal(stepFrameName)
-                    if stepFrame and stepFrame.GetHeight then
-                        targetScroll = targetScroll + stepFrame:GetHeight()
-                    end
-                end
-                if firstUnchecked > 1 then
-                    local spacing = -4
-                    targetScroll = targetScroll + (math.abs(spacing) * (firstUnchecked - 1))
-                end
-                targetScroll = math.max(0, targetScroll)
-                local maxScroll = GLV_MainScrollFrame:GetVerticalScrollRange()
-                if maxScroll and maxScroll > 0 then
-                    targetScroll = math.min(targetScroll, maxScroll)
-                end
-                GLV_MainScrollFrame:SetVerticalScroll(targetScroll)
-            end
-            
+
+            -- Update navigation arrow
             if GLV.GuideNavigation and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
                 local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
                 GLV.GuideNavigation:OnStepChanged(stepData)

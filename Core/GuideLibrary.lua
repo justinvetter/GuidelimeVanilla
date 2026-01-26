@@ -263,14 +263,7 @@ function GLV:LoadGuide(group, guideId)
         end
     end
     
-    -- Force highlighting refresh after guide loading to ensure proper display
-    if GLV.QuestTracker and GLV.QuestTracker.RefreshHighlighting then
-        GLV.Ace:ScheduleEvent(function()
-            GLV.QuestTracker:RefreshHighlighting()
-        end, 0.1)
-    end
-    
-    -- Let GuideWriter.lua handle the scroll positioning - it has better logic
+    -- CreateGuideSteps already handles highlighting via updateStepColors
 end
 
 

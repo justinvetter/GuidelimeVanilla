@@ -33,7 +33,7 @@ function addon:OnInitialize()
     GLV.AddonName = _ADDON_NAME
 
     -- Set debug mode for testing
-    GLV.Debug = true
+    GLV.Debug = false
     
     -- Set GLV.Ace first so other modules can access it
     GLV.Ace = self
@@ -82,6 +82,7 @@ function addon:OnEnable()
     GLV.CharacterTracker:Init()
     GLV.TaxiTracker:Init()
     GLV.GossipTracker:Init()
+    GLV.EquipmentTracker:Init()
     
     -- Initialize Guide Navigation integration AFTER the guide is loaded
     self:ScheduleEvent(function()

@@ -295,6 +295,13 @@ function Parser:parseGuide(guide, group)
                     end
                     parsedLine.text = stepText
 
+                    -- Check if this is an equip step (original line contains "Equip" and has useItemId)
+                    if parsedLine.useItemId and string.find(string.lower(line), "equip") then
+                        parsedLine.equipItemId = tonumber(parsedLine.useItemId)
+                        parsedLine.stepType = "EQUIP"
+                        parsedLine.hasCheckbox = true
+                    end
+
                 else
                     parsedLine = {
                         text = "",

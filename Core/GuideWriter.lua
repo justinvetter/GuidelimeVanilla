@@ -34,8 +34,110 @@ local CONFIG = {
     titleFrame = GLV_MainLoadedGuideTitle
 }
 
--- Reusable FontString for text measurement (performance optimization)
+-- Reusable FontString for text measurement (prevents memory leak)
 local measureFontString = nil
+
+-- Debounce control for RefreshGuide
+local refreshGuideScheduled = false
+
+-- Track FontStrings for quest and XP progress updates
+GLV.QuestProgressTrackers = {}
+GLV.XPProgressTrackers = {}
+
+-- Update XP progress display on tracked FontStrings (only on active step)
+function GLV:UpdateXPProgressDisplay()
+    if not GLV.CharacterTracker or not GLV.XPProgressTrackers then return end
+
+    -- Get current active step
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    for _, tracker in ipairs(GLV.XPProgressTrackers) do
+        if tracker.fontString and tracker.experienceRequirement and tracker.originalText then
+            -- Only show progress on the active step
+            if tracker.stepIndex == activeStep then
+                local progress, isDone = GLV.CharacterTracker:GetXPProgress(tracker.experienceRequirement)
+                if progress then
+                    local color = isDone and "|cFF00FF00" or "|cFFFFFF00"  -- Green if done, yellow otherwise
+                    tracker.fontString:SetText(tracker.originalText .. " " .. color .. progress .. "|r")
+                else
+                    tracker.fontString:SetText(tracker.originalText)
+                end
+            else
+                -- Not active step, show original text without progress
+                tracker.fontString:SetText(tracker.originalText)
+            end
+        end
+    end
+end
+
+-- Update quest progress display on tracked FontStrings (full objectives on new lines)
+function GLV:UpdateQuestProgressDisplay()
+    if not GLV.QuestTracker or not GLV.QuestProgressTrackers then return end
+
+    for _, tracker in ipairs(GLV.QuestProgressTrackers) do
+        if tracker.fontString and tracker.questId and tracker.originalText then
+            local objectives, allComplete, numObjectives = GLV.QuestTracker:GetQuestProgress(tracker.questId)
+            if objectives and numObjectives > 0 then
+                local text = tracker.originalText .. "\n"
+                for _, obj in ipairs(objectives) do
+                    -- Determine color based on progress
+                    local color = "|cFF00FF00"  -- Default green (completed)
+                    if not obj.completed then
+                        -- Extract current/total from text like "Red Burlap Bandana: 4/12"
+                        local _, _, current, total = string.find(obj.text, "(%d+)/(%d+)")
+                        if current and total then
+                            local cur = tonumber(current)
+                            local tot = tonumber(total)
+                            local pct = (tot > 0) and (cur / tot) or 0
+                            if pct == 0 then
+                                color = "|cFFFF0000"  -- Red: 0%
+                            elseif pct < 0.5 then
+                                color = "|cFFFF8000"  -- Orange: 1-49%
+                            else
+                                color = "|cFFFFFF00"  -- Yellow: 50-99%
+                            end
+                        else
+                            color = "|cFFFF0000"  -- Red if can't parse
+                        end
+                    end
+                    text = text .. "\n" .. color .. "- " .. obj.text .. "|r"
+                end
+                tracker.fontString:SetText(text)
+
+                -- Resize FontString and parent frame to fit new lines (+1 for blank line)
+                local originalLineCount = tracker.originalLineCount or 1
+                local totalLineCount = originalLineCount + numObjectives + 1
+                local newHeight = totalLineCount * CONFIG.fontLineHeight
+                local extraHeight = (numObjectives + 1) * CONFIG.fontLineHeight
+
+                tracker.fontString:SetHeight(newHeight)
+
+                -- Increase parent frame height
+                if tracker.parentFrame then
+                    local currentHeight = tracker.parentFrame:GetHeight()
+                    if not tracker.addedHeight then
+                        tracker.parentFrame:SetHeight(currentHeight + extraHeight)
+                        tracker.addedHeight = extraHeight
+                    end
+                end
+            else
+                tracker.fontString:SetText(tracker.originalText)
+                -- Reset height if no objectives
+                if tracker.parentFrame and tracker.addedHeight then
+                    local currentHeight = tracker.parentFrame:GetHeight()
+                    tracker.parentFrame:SetHeight(currentHeight - tracker.addedHeight)
+                    tracker.addedHeight = nil
+                end
+            end
+        end
+    end
+
+    -- Update scroll area after resizing
+    if GLV_MainScrollFrame then
+        GLV_MainScrollFrame:UpdateScrollChildRect()
+    end
+end
 
 
 --[[ UI CREATION FUNCTIONS ]]--
@@ -55,11 +157,12 @@ local function wrapText(inputText, maxWidth, font)
         if segment and segment ~= "" then table.insert(segments, segment) end
     end
 
-    -- Reuse FontString instead of creating new one each time (performance)
+    -- Reuse a single FontString for measurement to prevent memory leaks
     if not measureFontString then
         measureFontString = UIParent:CreateFontString(nil, "OVERLAY", font or "GameFontNormalSmall")
         measureFontString:Hide()
     end
+    local tempText = measureFontString
 
     for i, segment in ipairs(segments) do
         local currentLine = ""
@@ -67,8 +170,8 @@ local function wrapText(inputText, maxWidth, font)
         for word in string.gfind(segment, "[%S]+") do table.insert(words, word) end
         for j, word in ipairs(words) do
             local testLine = currentLine == "" and word or currentLine.." "..word
-            measureFontString:SetText(testLine)
-            if measureFontString:GetStringWidth() <= maxWidth then
+            tempText:SetText(testLine)
+            if tempText:GetStringWidth() <= maxWidth then
                 currentLine = testLine
             else
                 wrappedText = wrappedText..(wrappedText=="" and "" or "\n")..currentLine
@@ -85,7 +188,7 @@ local function wrapText(inputText, maxWidth, font)
             lineCount = lineCount + 1
         end
     end
-    local textHeight = measureFontString:GetHeight() * lineCount
+    local textHeight = tempText:GetHeight() * lineCount
     return wrappedText, lineCount, textHeight
 end
 
@@ -154,6 +257,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
                 icon = guide.steps[i].icon,
                 useItemId = guide.steps[i].useItemId,
+                equipItemId = guide.steps[i].equipItemId,
                 questId = guide.steps[i].questId,
                 coords = guide.steps[i].coords,
                 stepType = guide.steps[i].stepType,
@@ -183,6 +287,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 isOC = guide.steps[i].emptyLine or guide.steps[i].complete_with_next,
                 icon = guide.steps[i].icon,
                 useItemId = guide.steps[i].useItemId,
+                equipItemId = guide.steps[i].equipItemId,
                 questId = guide.steps[i].questId,
                 coords = guide.steps[i].coords,
                 stepType = guide.steps[i].stepType,
@@ -256,25 +361,11 @@ end
 
 --[[ CHECKBOX LOGIC FUNCTIONS ]]--
 
--- Update colors for all step frames (exposed globally for QuestTracker)
+-- Update step colors by rebuilding the UI (SetBackdropColor doesn't work after frame creation)
+-- This function is kept for backwards compatibility with QuestTracker and TaxiTracker
 local function updateStepColors(scrollChild, guideId, displaySteps, activeStepIndex)
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r updateStepColors called with activeStepIndex: " .. tostring(activeStepIndex) .. ", displaySteps count: " .. tostring(table.getn(displaySteps)))
-    end
-    
-    for i = 1, table.getn(displaySteps) do
-        local frameName = scrollChild:GetName().."Step"..guideId.."_"..i
-        local frame = getglobal(frameName)
-        if frame and frame.SetBackdropColor then
-            local col = (i == activeStepIndex) and CONFIG.colors.active or (isEven(i) and CONFIG.colors.even or CONFIG.colors.odd)
-            frame:SetBackdropColor(unpack(col))
-            if GLV.Debug and i == activeStepIndex then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Applied active color to step " .. i .. " (frame: " .. frameName .. ")")
-            end
-        elseif GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Frame not found or no SetBackdropColor: " .. frameName)
-        end
-    end
+    -- Just rebuild the UI - colors are set correctly during frame creation
+    GLV:RefreshGuide()
 end
 
 -- Parse guide name content using the same logic as the parser
@@ -377,7 +468,13 @@ end
 --[[ MAIN GUIDE FUNCTIONS ]]--
 
 -- Public: rebuild the guide UI using the current guide and main scroll child
+-- Uses debounce to prevent multiple rapid refreshes
 function GLV:RefreshGuide()
+    -- Debounce: if refresh is already scheduled, skip
+    if refreshGuideScheduled then
+        return
+    end
+
     local guide = GLV.CurrentGuide
     if not guide then return end
     local scrollChild = GLV_MainScrollFrameScrollChild
@@ -385,12 +482,15 @@ function GLV:RefreshGuide()
         scrollChild = GLV_MainScrollFrame:GetScrollChild()
     end
     if not scrollChild then return end
-    self:CreateGuideSteps(scrollChild, guide, guide.id, function()
-        -- Callback for RefreshGuide - refresh highlighting after rebuild
-        if GLV.QuestTracker then
-            GLV.QuestTracker:RefreshHighlighting()
-        end
-    end)
+
+    -- Mark as scheduled to prevent multiple calls
+    refreshGuideScheduled = true
+
+    -- Use a small delay to batch multiple refresh requests
+    GLV.Ace:ScheduleEvent("GLV_RefreshGuide", function()
+        refreshGuideScheduled = false
+        self:CreateGuideSteps(scrollChild, guide, guide.id)
+    end, 0.1)
 end
 
 -- Create and display all guide steps in the UI with proper grouping and layout
@@ -407,11 +507,15 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     -- Cleanup previous children
     local children = {scrollChild:GetChildren()}
     for i, child in pairs(children) do
-        if child and type(child)=="table" then
+        if child and type(child) == "table" then
             child:Hide()
             child:SetParent(nil)
         end
     end
+
+    -- Clear progress trackers for new guide
+    GLV.QuestProgressTrackers = {}
+    GLV.XPProgressTrackers = {}
 
     local lastLine = nil
     local totalHeight = 0
@@ -436,13 +540,68 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     end
     GLV.CurrentDisplayToOriginal = displayIndexToOriginalIndex
 
+    -- Calculate activeStep BEFORE creating frames so we can set the right color
+    local totalSteps = table.getn(displaySteps)
+    local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    if activeStep == 0 and totalSteps > 0 then
+        -- Find first unchecked step
+        for i2 = 1, totalSteps do
+            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                local orig = displayIndexToOriginalIndex[i2]
+                if orig and not stepState[orig] then
+                    activeStep = i2
+                    break
+                end
+            end
+        end
+        -- If all completed, use last step with checkbox
+        if activeStep == 0 then
+            for i2 = totalSteps, 1, -1 do
+                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                    activeStep = i2
+                    break
+                end
+            end
+        end
+        -- Final fallback
+        if activeStep == 0 then
+            activeStep = 1
+        end
+        GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+    end
+
     for idx, step in ipairs(displaySteps) do
-        local frame = CreateFrame("Frame", scrollChild:GetName().."Step"..guideId.."_"..idx, scrollChild)
+        local frameName = scrollChild:GetName().."Step"..guideId.."_"..idx
+        local frame = CreateFrame("Frame", frameName, scrollChild)
+
+        -- Clean up old children if frame is being reused (FontStrings, textures, etc.)
+        local regions = {frame:GetRegions()}
+        for _, region in pairs(regions) do
+            if region and region.Hide then
+                region:Hide()
+            end
+        end
+        local children = {frame:GetChildren()}
+        for _, child in pairs(children) do
+            if child and child.Hide then
+                child:Hide()
+                child:SetParent(nil)
+            end
+        end
+
+        frame:Show()
         frame:SetWidth(CONFIG.totalWidth)
         frame:SetBackdrop(CONFIG.backdrop)
         if frame.EnableMouse then frame:EnableMouse(true) end
 
-        local color = isEven(idx) and CONFIG.colors.even or CONFIG.colors.odd
+        -- Set color: YELLOW for active step, even/odd for others
+        local color
+        if idx == activeStep then
+            color = CONFIG.colors.active
+        else
+            color = isEven(idx) and CONFIG.colors.even or CONFIG.colors.odd
+        end
         frame:SetBackdropColor(unpack(color))
 
         local yOffset = -2
@@ -455,7 +614,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
 
             local textFrame = frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-            
+
             local wrappedText, lineCount, textHeight = wrapText(line.text or "", availableWidth)
             textFrame:SetText(wrappedText)
             textFrame:SetJustifyH("LEFT")
@@ -463,6 +622,27 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             textFrame:SetWidth(availableWidth)
             local usedHeight = (lineCount * CONFIG.fontLineHeight)
             textFrame:SetHeight(usedHeight)
+
+            -- Track [QC] steps for progress display
+            if line.stepType == "COMPLETE" and line.questId then
+                table.insert(GLV.QuestProgressTrackers, {
+                    fontString = textFrame,
+                    parentFrame = frame,
+                    questId = line.questId,
+                    originalText = wrappedText,
+                    originalLineCount = lineCount
+                })
+            end
+
+            -- Track [XP] steps for progress display (only show on active step)
+            if line.experienceRequirement then
+                table.insert(GLV.XPProgressTrackers, {
+                    fontString = textFrame,
+                    experienceRequirement = line.experienceRequirement,
+                    originalText = wrappedText,
+                    stepIndex = idx
+                })
+            end
 
             local offsetX = reservedIconWidth
 
@@ -552,8 +732,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                 -- Update step if changed
                 if newActiveStep ~= currentActiveStep then
                     GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-                    GLV_MainLoadedGuideCounter:SetText("("..tostring(newActiveStep).."/"..tostring(table.getn(displaySteps))..")")
-                    
+
                     -- Update Guide Navigation waypoint
                     if newActiveStep > 0 and GLV.GuideNavigation then
                         local activeStepData = displaySteps[newActiveStep]
@@ -561,15 +740,10 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                             GLV.GuideNavigation:OnStepChanged(activeStepData)
                         end
                     end
-                    
-                    -- Scroll to new step if checked
-                    if checked then
-                        scrollToStep(newActiveStep, scrollChild, guideId, CONFIG.spacing)
-                    end
                 end
-                
-                -- Always update colors
-                updateStepColors(scrollChild, guideId, displaySteps, newActiveStep)
+
+                -- Rebuild UI to update highlight and scroll (RefreshGuide handles everything)
+                GLV:RefreshGuide()
             end)
         end
 
@@ -580,80 +754,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     end
 
     scrollChild:SetHeight(math.max(1, totalHeight))
-    local totalSteps = table.getn(displaySteps)
-    local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-    
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Initial activeStep: " .. tostring(activeStep) .. ", totalSteps: " .. tostring(totalSteps))
-    end
-    
-    if activeStep == 0 and totalSteps > 0 then
-        if GLV.Debug then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Need to calculate activeStep")
-        end
-        
-        -- First, try to find the first unchecked step
-        for i2 = 1, totalSteps do
-            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                local orig = displayIndexToOriginalIndex[i2]
-                if orig and not stepState[orig] then
-                    activeStep = i2
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Found first unchecked step: " .. i2)
-                    end
-                    break
-                end
-            end
-        end
-        
-        -- If no unchecked step found (all completed), set to last step with checkbox
-        if activeStep == 0 then
-            if GLV.Debug then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r No unchecked steps, looking for last step with checkbox")
-            end
-            for i2 = totalSteps, 1, -1 do
-                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                    activeStep = i2
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Found last step with checkbox: " .. i2)
-                    end
-                    break
-                end
-            end
-        end
-        
-        -- Final fallback: if still no active step, use first step with checkbox
-        if activeStep == 0 then
-            if GLV.Debug then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Still no active step, using first step with checkbox")
-            end
-            for i2 = 1, totalSteps do
-                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                    activeStep = i2
-                    if GLV.Debug then
-                        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Using first step with checkbox: " .. i2)
-                    end
-                    break
-                end
-            end
-        end
-        
-        -- Save the calculated active step
-        if activeStep > 0 then
-            GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
-            if GLV.Debug then
-                DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r Saved activeStep: " .. activeStep)
-            end
-        end
-    end
-    
+
+    -- activeStep already calculated before frame creation, just update counter
     GLV_MainLoadedGuideCounter:SetText("("..tostring(activeStep).."/"..tostring(totalSteps)..")")
-    
-    -- Highlight active frame at initial render
-    if GLV.Debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[DEBUG]|r About to call updateStepColors with activeStep: " .. tostring(activeStep))
-    end
-    updateStepColors(scrollChild, guideId, displaySteps, activeStep)
     
     -- Set initial Guide Navigation waypoint
     if activeStep > 0 and GLV.GuideNavigation then
@@ -666,17 +769,28 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     -- Scroll to show the active step at the top
     if activeStep > 0 then
         GLV.Ace:ScheduleEvent(function()
+            if GLV_MainScrollFrame then
+                GLV_MainScrollFrame:UpdateScrollChildRect()
+            end
             scrollToStep(activeStep, scrollChild, guideId, CONFIG.spacing)
-        end, 0.3)
+            -- Update progress displays
+            GLV:UpdateQuestProgressDisplay()
+            GLV:UpdateXPProgressDisplay()
+        end, 0.1)
+    else
+        GLV.Ace:ScheduleEvent(function()
+            if GLV_MainScrollFrame then
+                GLV_MainScrollFrame:UpdateScrollChildRect()
+                GLV_MainScrollFrame:SetVerticalScroll(0)
+            end
+            -- Update progress displays
+            GLV:UpdateQuestProgressDisplay()
+            GLV:UpdateXPProgressDisplay()
+        end, 0.1)
     end
      
-     createTitle(guide)
-    
-    -- Force highlighting immediately after everything is created
-    if GLV.QuestTracker then
-        GLV.QuestTracker:RefreshHighlighting()
-    end
-    
+    createTitle(guide)
+
     if callback then callback() end
 end
 
