@@ -242,7 +242,7 @@ function Parser:parseGuide(guide, group)
                                 fullText = "\n|cFFFFFC01?|r Turnin "
                             elseif tag == "COMPLETE" then
                                 parsedLine.stepType = "COMPLETE"
-                                fullText = "\nComplete "
+                                fullText = "complete "
                             end
                             
                             if not parsedLine.questTags then parsedLine.questTags = {} end

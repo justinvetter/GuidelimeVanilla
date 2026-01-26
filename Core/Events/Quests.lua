@@ -91,10 +91,6 @@ function QuestTracker:OnQuestLogUpdate(forceCheck)
         end
     end
 
-    -- Update quest progress display on guide steps (skip if refresh is pending)
-    if GLV.UpdateQuestProgressDisplay and not GLV.RefreshGuidePending then
-        GLV:UpdateQuestProgressDisplay()
-    end
 end
 
 

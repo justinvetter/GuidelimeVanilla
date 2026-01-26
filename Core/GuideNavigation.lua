@@ -76,9 +76,15 @@ function GuideNavigation:CreateNavigationFrame()
     navigationFrame.objective:SetTextColor(1, 1, 1)
     navigationFrame.objective:SetText("")
     navigationFrame.objective:SetJustifyH("CENTER")
-    
+
+    navigationFrame.questProgress = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    navigationFrame.questProgress:SetPoint("TOP", navigationFrame.objective, "BOTTOM", 0, -3)
+    navigationFrame.questProgress:SetTextColor(1, 1, 1)
+    navigationFrame.questProgress:SetText("")
+    navigationFrame.questProgress:SetJustifyH("CENTER")
+
     navigationFrame.distance = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    navigationFrame.distance:SetPoint("TOP", navigationFrame.objective, "BOTTOM", 0, -5)
+    navigationFrame.distance:SetPoint("TOP", navigationFrame.questProgress, "BOTTOM", 0, -5)
     navigationFrame.distance:SetTextColor(0.8, 0.8, 0.8)
     navigationFrame.distance:SetText("")
     navigationFrame.distance:SetJustifyH("CENTER")
@@ -258,9 +264,10 @@ end
 function GuideNavigation:Hide()
     if navigationFrame then
         navigationFrame:Hide()
-            navigationFrame.questName:SetText("")
-    navigationFrame.objective:SetText("")
-    navigationFrame.distance:SetText("")
+        navigationFrame.questName:SetText("")
+        navigationFrame.objective:SetText("")
+        navigationFrame.questProgress:SetText("")
+        navigationFrame.distance:SetText("")
     end
     isNavigationActive = false
 end
@@ -304,7 +311,7 @@ function GuideNavigation:UpdateNavigation()
             questLevel = string.gsub(questLevel, "%[(.-)%]", function(questLevel)
                 local playerLevel = UnitLevel("player")
                 local diff = tonumber(questLevel) - playerLevel
-  
+
                 if diff >= 6 then
                     color_rgb = { r = 233/255, g = 54/255, b = 65/255 }
                 elseif diff >= 3 and diff <= 5 then
@@ -332,7 +339,44 @@ function GuideNavigation:UpdateNavigation()
         navigationFrame.questName:SetText("")
         navigationFrame.objective:SetText("Guide Objective")
     end
-    
+
+    -- Display quest progress objectives
+    if self.currentQuestId and GLV.QuestTracker then
+        local objectives, allComplete = GLV.QuestTracker:GetQuestProgress(self.currentQuestId)
+        if objectives and table.getn(objectives) > 0 then
+            local progressLines = {}
+            for _, obj in ipairs(objectives) do
+                local color
+                if obj.completed then
+                    color = "|cFF00FF00"
+                else
+                    -- Parse progress like "0/8" to determine color
+                    local current, total = string.match(obj.text, "(%d+)/(%d+)")
+                    if current and total then
+                        local pct = tonumber(current) / tonumber(total)
+                        if pct == 0 then
+                            color = "|cFFFF0000"
+                        elseif pct < 0.33 then
+                            color = "|cFFFF8000"
+                        elseif pct < 0.66 then
+                            color = "|cFFFFFF00"
+                        else
+                            color = "|cFF00FF00"
+                        end
+                    else
+                        color = "|cFFFFFFFF"
+                    end
+                end
+                table.insert(progressLines, color .. obj.text .. "|r")
+            end
+            navigationFrame.questProgress:SetText(table.concat(progressLines, "\n"))
+        else
+            navigationFrame.questProgress:SetText("")
+        end
+    else
+        navigationFrame.questProgress:SetText("")
+    end
+
     local distance, xDelta, yDelta = self:CalculateDistance(playerPos, currentWaypoint)
     
     local distanceText = self:FormatDistance(distance)
@@ -474,7 +518,7 @@ end
 -- Generates step description based on step data and target coordinates
 function GuideNavigation:GetStepDescription(stepData, targetCoords)
     local description = "Guide Step"
-    
+
     local questId = 0
     if stepData and stepData.lines then
         for _, line in ipairs(stepData.lines) do
@@ -484,6 +528,9 @@ function GuideNavigation:GetStepDescription(stepData, targetCoords)
             end
         end
     end
+
+    -- Store questId for progress display
+    self.currentQuestId = questId
     
     if questId then
         local questName = GLV:GetQuestNameByID(questId)
