@@ -205,7 +205,17 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. spellName .. "|r"
 
                         elseif tag == "COLLECT_ITEM" then
-                            return "|c" .. GLV.Colors[tag] .. self:CollectItem(tagContent) .. "|r"
+                            local itemId, itemCount, itemName = self:CollectItem(tagContent)
+                            if itemId then
+                                if not parsedLine.collectItems then parsedLine.collectItems = {} end
+                                table.insert(parsedLine.collectItems, {
+                                    itemId = itemId,
+                                    count = itemCount or 1,
+                                    name = itemName
+                                })
+                                parsedLine.hasCheckbox = true
+                            end
+                            return "|c" .. GLV.Colors[tag] .. (itemName or "Unknown Item") .. "|r"
 
                         elseif tag == "USE_ITEM" then
                             local itemName = GLV:GetItemNameById(tagContent)
@@ -392,11 +402,17 @@ function Parser:Learn(content)
     return nil, "Unknown Spell"
 end
 
--- Get item name for collect item tags from the COLLECT_ITEM tag content
+-- Get item info for collect item tags from the COLLECT_ITEM tag content
+-- Format: [CI itemId] or [CI itemId,count]
 function Parser:CollectItem(content)
-    local itemID, itemCount = string.match(content, "(%d+)(,?)(%d?)")
+    local itemID, separator, itemCount = string.match(content, "(%d+)(,?)(%d*)")
+    if not itemID then return nil, nil, nil end
+
+    local numericId = tonumber(itemID)
+    local numericCount = tonumber(itemCount) or 1
     local itemName = GLV:GetItemNameById(itemID)
-    return itemName
+
+    return numericId, numericCount, itemName
 end
 
 function Parser:GetItemTexture(content)

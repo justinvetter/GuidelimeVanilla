@@ -83,6 +83,7 @@ function addon:OnEnable()
     GLV.TaxiTracker:Init()
     GLV.GossipTracker:Init()
     GLV.EquipmentTracker:Init()
+    GLV.ItemTracker:Init()
     
     -- Initialize Guide Navigation integration AFTER the guide is loaded
     self:ScheduleEvent(function()
