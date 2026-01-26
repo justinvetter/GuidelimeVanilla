@@ -93,9 +93,15 @@ Guides use tagged format parsed by `GuideParser.lua`:
 -- Use these patterns for Vanilla WoW compatibility:
 table.getn(t)           -- NOT #t
 string.gfind(s, pat)    -- NOT string.gmatch
+string.find(s, pat)     -- NOT string.match (use captures with string.find)
 getglobal("name")       -- For dynamic frame access
 this                    -- Inside XML event handlers, NOT self
 ```
+
+## WoW 1.12 UI Limitations
+
+- **No inline textures in text**: The `|Tpath:size|t` escape sequence does NOT work in WoW 1.12. To show icons inline with text, you must create separate Texture/Button frames and position them manually, or use colored text characters as substitutes.
+- **Limited escape sequences**: Only `|cAARRGGBB` (color) and `|r` (reset) work reliably in FontStrings.
 
 ## Adding New Guides
 

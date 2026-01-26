@@ -727,6 +727,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                 end
             end
 
+
             -- Position text with consistent offset for good alignment
             textFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 2 + offsetX, yOffset)
             table.insert(lineStrings, textFrame)
