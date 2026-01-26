@@ -225,15 +225,15 @@ function Parser:parseGuide(guide, group)
                             
                             if tag == "ACCEPT" then
                                 parsedLine.stepType = "ACCEPT"
-                                fullText = fullText .. "Accept "
+                                fullText = "\nAccept "
                                 parsedLine.icon = "Interface\\GossipFrame\\AvailableQuestIcon"
                             elseif tag == "TURNIN" then
                                 parsedLine.stepType = "TURNIN"
-                                fullText = fullText .. "Turnin "
+                                fullText = "\nTurnin "
                                 parsedLine.icon = "Interface\\GossipFrame\\ActiveQuestIcon"
                             elseif tag == "COMPLETE" then
                                 parsedLine.stepType = "COMPLETE"
-                                fullText = fullText .. "Complete "
+                                fullText = "\nComplete "
                             end
                             
                             if not parsedLine.questTags then parsedLine.questTags = {} end
@@ -264,6 +264,9 @@ function Parser:parseGuide(guide, group)
 
                         elseif tag == "BIND_HEARTHSTONE" then
                             parsedLine.bindHearthstone = true
+                            parsedLine.bindLocation = tagContent
+                            parsedLine.hasCheckbox = true
+                            parsedLine.stepType = "BIND_HEARTHSTONE"
                             return "|c" .. GLV.Colors[tag] .. tagContent .. "|r"
                             
                         elseif tag == "EXPERIENCE" then

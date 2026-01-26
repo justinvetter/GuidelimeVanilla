@@ -39,6 +39,7 @@ local measureFontString = nil
 
 -- Debounce control for RefreshGuide
 local refreshGuideScheduled = false
+GLV.RefreshGuidePending = false
 
 -- Track FontStrings for quest and XP progress updates
 GLV.QuestProgressTrackers = {}
@@ -85,7 +86,7 @@ function GLV:UpdateQuestProgressDisplay()
             if tracker.stepIndex == activeStep then
                 local objectives, allComplete, numObjectives = GLV.QuestTracker:GetQuestProgress(tracker.questId)
                 if objectives and numObjectives > 0 then
-                    local text = tracker.originalText .. "\n"
+                    local text = tracker.originalText .. "\n"  -- Blank line before objectives
                     for _, obj in ipairs(objectives) do
                         -- Determine color based on progress
                         local color = "|cFF00FF00"  -- Default green (completed)
@@ -98,10 +99,12 @@ function GLV:UpdateQuestProgressDisplay()
                                 local pct = (tot > 0) and (cur / tot) or 0
                                 if pct == 0 then
                                     color = "|cFFFF0000"  -- Red: 0%
-                                elseif pct < 0.5 then
-                                    color = "|cFFFF8000"  -- Orange: 1-49%
+                                elseif pct < 0.33 then
+                                    color = "|cFFFF8000"  -- Orange: 1-33%
+                                elseif pct < 0.66 then
+                                    color = "|cFFFFFF00"  -- Yellow: 33-66%
                                 else
-                                    color = "|cFFFFFF00"  -- Yellow: 50-99%
+                                    color = "|cFF00FF00"  -- Green: 66-99%
                                 end
                             else
                                 color = "|cFFFF0000"  -- Red if can't parse
@@ -129,7 +132,10 @@ function GLV:UpdateQuestProgressDisplay()
                     end
                 else
                     tracker.fontString:SetText(tracker.originalText)
-                    -- Reset height if no objectives
+                    -- Reset FontString height
+                    local originalHeight = (tracker.originalLineCount or 1) * CONFIG.fontLineHeight
+                    tracker.fontString:SetHeight(originalHeight)
+                    -- Reset parent frame height if objectives were previously shown
                     if tracker.parentFrame and tracker.addedHeight then
                         local currentHeight = tracker.parentFrame:GetHeight()
                         tracker.parentFrame:SetHeight(currentHeight - tracker.addedHeight)
@@ -139,7 +145,10 @@ function GLV:UpdateQuestProgressDisplay()
             else
                 -- Not active step, show original text without objectives
                 tracker.fontString:SetText(tracker.originalText)
-                -- Reset height if objectives were previously shown
+                -- Reset FontString height
+                local originalHeight = (tracker.originalLineCount or 1) * CONFIG.fontLineHeight
+                tracker.fontString:SetHeight(originalHeight)
+                -- Reset parent frame height if objectives were previously shown
                 if tracker.parentFrame and tracker.addedHeight then
                     local currentHeight = tracker.parentFrame:GetHeight()
                     tracker.parentFrame:SetHeight(currentHeight - tracker.addedHeight)
@@ -281,6 +290,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
                 destination = guide.steps[i].destination,
+                bindLocation = guide.steps[i].bindLocation,
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
@@ -295,7 +305,7 @@ local function groupSteps(guide, stepState, currentGuideId)
             end
             i = i + 1
         end
-        
+
         -- Add main line
         if i <= safe_tablelen(guide.steps) and guide.steps[i] then
             table.insert(stepFrameData.lines, {
@@ -311,6 +321,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
                 destination = guide.steps[i].destination,
+                bindLocation = guide.steps[i].bindLocation,
             })
             
             stepFrameData.hasCheckbox = true
@@ -501,6 +512,7 @@ function GLV:RefreshGuide()
 
     -- Mark as scheduled to prevent multiple calls
     refreshGuideScheduled = true
+    GLV.RefreshGuidePending = true
 
     -- Use a small delay to batch multiple refresh requests
     GLV.Ace:ScheduleEvent("GLV_RefreshGuide", function()
@@ -764,7 +776,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             end)
         end
 
-        frame:SetHeight(frameHeight + 4)
+        frame:SetHeight(frameHeight - CONFIG.lineSpacing + 4)
         frame:SetPoint("TOPLEFT", lastLine or scrollChild, lastLine and "BOTTOMLEFT" or "TOPLEFT", 0, lastLine and CONFIG.spacing or 0)
         lastLine = frame
         totalHeight = totalHeight + frameHeight + math.abs(CONFIG.spacing)
@@ -786,26 +798,25 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     -- Scroll to show the active step at the top
     if activeStep > 0 then
         GLV.Ace:ScheduleEvent(function()
-            -- Update progress displays FIRST (this may change frame heights)
-            GLV:UpdateQuestProgressDisplay()
-            GLV:UpdateXPProgressDisplay()
-            -- Update scroll area AFTER height changes
             if GLV_MainScrollFrame then
                 GLV_MainScrollFrame:UpdateScrollChildRect()
             end
-            -- Scroll AFTER heights are finalized
             scrollToStep(activeStep, scrollChild, guideId, CONFIG.spacing)
+            -- Update progress displays after scroll (only affects active step)
+            GLV:UpdateQuestProgressDisplay()
+            GLV:UpdateXPProgressDisplay()
+            GLV.RefreshGuidePending = false
         end, 0.1)
     else
         GLV.Ace:ScheduleEvent(function()
-            -- Update progress displays FIRST (this may change frame heights)
-            GLV:UpdateQuestProgressDisplay()
-            GLV:UpdateXPProgressDisplay()
-            -- Update scroll area AFTER height changes
             if GLV_MainScrollFrame then
                 GLV_MainScrollFrame:UpdateScrollChildRect()
                 GLV_MainScrollFrame:SetVerticalScroll(0)
             end
+            -- Update progress displays
+            GLV:UpdateQuestProgressDisplay()
+            GLV:UpdateXPProgressDisplay()
+            GLV.RefreshGuidePending = false
         end, 0.1)
     end
      
