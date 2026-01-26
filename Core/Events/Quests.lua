@@ -35,6 +35,16 @@ function QuestTracker:Init()
         GLV.Ace:Hook("AbandonQuest", HookQuestAbandon)
 
         GLV.Ace:RegisterEvent("QUEST_LOG_UPDATE", function() self:OnQuestLogUpdate() end)
+        GLV.Ace:RegisterEvent("UNIT_QUEST_LOG_CHANGED", function(unit)
+            if unit == "player" then self:OnQuestLogUpdate() end
+        end)
+        GLV.Ace:RegisterEvent("BAG_UPDATE", function() self:OnQuestLogUpdate() end)
+        -- Delayed check after looting to give game time to update quest log
+        GLV.Ace:RegisterEvent("CHAT_MSG_LOOT", function()
+            GLV.Ace:ScheduleEvent("GLV_LootQuestCheck", function()
+                self:OnQuestLogUpdate(true)  -- Force check, bypass throttle
+            end, 0.5)
+        end)
     end
     
     self.previousQuestStates = {}
@@ -49,10 +59,10 @@ end
 --[[ EVENTS ]]--
 
 -- Handle quest log updates and check for completed objectives
-function QuestTracker:OnQuestLogUpdate()
+function QuestTracker:OnQuestLogUpdate(forceCheck)
     -- Throttle: only process once per QUEST_LOG_UPDATE_THROTTLE seconds
     local currentTime = GetTime()
-    if currentTime - lastQuestLogUpdate < QUEST_LOG_UPDATE_THROTTLE then
+    if not forceCheck and currentTime - lastQuestLogUpdate < QUEST_LOG_UPDATE_THROTTLE then
         return
     end
     lastQuestLogUpdate = currentTime
@@ -81,10 +91,6 @@ function QuestTracker:OnQuestLogUpdate()
         end
     end
 
-    -- Update quest progress display on guide steps
-    if GLV.UpdateQuestProgressDisplay then
-        GLV:UpdateQuestProgressDisplay()
-    end
 end
 
 

@@ -39,9 +39,9 @@ local measureFontString = nil
 
 -- Debounce control for RefreshGuide
 local refreshGuideScheduled = false
+GLV.RefreshGuidePending = false
 
--- Track FontStrings for quest and XP progress updates
-GLV.QuestProgressTrackers = {}
+-- Track FontStrings for XP progress updates
 GLV.XPProgressTrackers = {}
 
 -- Update XP progress display on tracked FontStrings (only on active step)
@@ -70,75 +70,6 @@ function GLV:UpdateXPProgressDisplay()
         end
     end
 end
-
--- Update quest progress display on tracked FontStrings (full objectives on new lines)
-function GLV:UpdateQuestProgressDisplay()
-    if not GLV.QuestTracker or not GLV.QuestProgressTrackers then return end
-
-    for _, tracker in ipairs(GLV.QuestProgressTrackers) do
-        if tracker.fontString and tracker.questId and tracker.originalText then
-            local objectives, allComplete, numObjectives = GLV.QuestTracker:GetQuestProgress(tracker.questId)
-            if objectives and numObjectives > 0 then
-                local text = tracker.originalText .. "\n"
-                for _, obj in ipairs(objectives) do
-                    -- Determine color based on progress
-                    local color = "|cFF00FF00"  -- Default green (completed)
-                    if not obj.completed then
-                        -- Extract current/total from text like "Red Burlap Bandana: 4/12"
-                        local _, _, current, total = string.find(obj.text, "(%d+)/(%d+)")
-                        if current and total then
-                            local cur = tonumber(current)
-                            local tot = tonumber(total)
-                            local pct = (tot > 0) and (cur / tot) or 0
-                            if pct == 0 then
-                                color = "|cFFFF0000"  -- Red: 0%
-                            elseif pct < 0.5 then
-                                color = "|cFFFF8000"  -- Orange: 1-49%
-                            else
-                                color = "|cFFFFFF00"  -- Yellow: 50-99%
-                            end
-                        else
-                            color = "|cFFFF0000"  -- Red if can't parse
-                        end
-                    end
-                    text = text .. "\n" .. color .. "- " .. obj.text .. "|r"
-                end
-                tracker.fontString:SetText(text)
-
-                -- Resize FontString and parent frame to fit new lines (+1 for blank line)
-                local originalLineCount = tracker.originalLineCount or 1
-                local totalLineCount = originalLineCount + numObjectives + 1
-                local newHeight = totalLineCount * CONFIG.fontLineHeight
-                local extraHeight = (numObjectives + 1) * CONFIG.fontLineHeight
-
-                tracker.fontString:SetHeight(newHeight)
-
-                -- Increase parent frame height
-                if tracker.parentFrame then
-                    local currentHeight = tracker.parentFrame:GetHeight()
-                    if not tracker.addedHeight then
-                        tracker.parentFrame:SetHeight(currentHeight + extraHeight)
-                        tracker.addedHeight = extraHeight
-                    end
-                end
-            else
-                tracker.fontString:SetText(tracker.originalText)
-                -- Reset height if no objectives
-                if tracker.parentFrame and tracker.addedHeight then
-                    local currentHeight = tracker.parentFrame:GetHeight()
-                    tracker.parentFrame:SetHeight(currentHeight - tracker.addedHeight)
-                    tracker.addedHeight = nil
-                end
-            end
-        end
-    end
-
-    -- Update scroll area after resizing
-    if GLV_MainScrollFrame then
-        GLV_MainScrollFrame:UpdateScrollChildRect()
-    end
-end
-
 
 --[[ UI CREATION FUNCTIONS ]]--
 
@@ -265,6 +196,8 @@ local function groupSteps(guide, stepState, currentGuideId)
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
                 destination = guide.steps[i].destination,
+                bindLocation = guide.steps[i].bindLocation,
+                collectItems = guide.steps[i].collectItems,
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
@@ -279,7 +212,7 @@ local function groupSteps(guide, stepState, currentGuideId)
             end
             i = i + 1
         end
-        
+
         -- Add main line
         if i <= safe_tablelen(guide.steps) and guide.steps[i] then
             table.insert(stepFrameData.lines, {
@@ -295,6 +228,8 @@ local function groupSteps(guide, stepState, currentGuideId)
                 experienceRequirement = guide.steps[i].experienceRequirement,
                 learnTags = guide.steps[i].learnTags,
                 destination = guide.steps[i].destination,
+                bindLocation = guide.steps[i].bindLocation,
+                collectItems = guide.steps[i].collectItems,
             })
             
             stepFrameData.hasCheckbox = true
@@ -485,6 +420,7 @@ function GLV:RefreshGuide()
 
     -- Mark as scheduled to prevent multiple calls
     refreshGuideScheduled = true
+    GLV.RefreshGuidePending = true
 
     -- Use a small delay to batch multiple refresh requests
     GLV.Ace:ScheduleEvent("GLV_RefreshGuide", function()
@@ -514,7 +450,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     end
 
     -- Clear progress trackers for new guide
-    GLV.QuestProgressTrackers = {}
     GLV.XPProgressTrackers = {}
 
     local lastLine = nil
@@ -623,17 +558,6 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             local usedHeight = (lineCount * CONFIG.fontLineHeight)
             textFrame:SetHeight(usedHeight)
 
-            -- Track [QC] steps for progress display
-            if line.stepType == "COMPLETE" and line.questId then
-                table.insert(GLV.QuestProgressTrackers, {
-                    fontString = textFrame,
-                    parentFrame = frame,
-                    questId = line.questId,
-                    originalText = wrappedText,
-                    originalLineCount = lineCount
-                })
-            end
-
             -- Track [XP] steps for progress display (only show on active step)
             if line.experienceRequirement then
                 table.insert(GLV.XPProgressTrackers, {
@@ -696,6 +620,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                 end
             end
 
+
             -- Position text with consistent offset for good alignment
             textFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 2 + offsetX, yOffset)
             table.insert(lineStrings, textFrame)
@@ -747,7 +672,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             end)
         end
 
-        frame:SetHeight(frameHeight + 4)
+        frame:SetHeight(frameHeight - CONFIG.lineSpacing + 4)
         frame:SetPoint("TOPLEFT", lastLine or scrollChild, lastLine and "BOTTOMLEFT" or "TOPLEFT", 0, lastLine and CONFIG.spacing or 0)
         lastLine = frame
         totalHeight = totalHeight + frameHeight + math.abs(CONFIG.spacing)
@@ -773,9 +698,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                 GLV_MainScrollFrame:UpdateScrollChildRect()
             end
             scrollToStep(activeStep, scrollChild, guideId, CONFIG.spacing)
-            -- Update progress displays
-            GLV:UpdateQuestProgressDisplay()
+            -- Update XP progress display after scroll (only affects active step)
             GLV:UpdateXPProgressDisplay()
+            GLV.RefreshGuidePending = false
         end, 0.1)
     else
         GLV.Ace:ScheduleEvent(function()
@@ -783,9 +708,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                 GLV_MainScrollFrame:UpdateScrollChildRect()
                 GLV_MainScrollFrame:SetVerticalScroll(0)
             end
-            -- Update progress displays
-            GLV:UpdateQuestProgressDisplay()
+            -- Update XP progress display
             GLV:UpdateXPProgressDisplay()
+            GLV.RefreshGuidePending = false
         end, 0.1)
     end
      
