@@ -182,6 +182,20 @@ function Parser:parseGuide(guide, group)
                             return ""
 
                         elseif tag == "GOTO" then
+                            -- Parse coordinates from [G x,y Zone Name] format
+                            local x, y, zoneName = string.match(tagContent, "(%d+%.?%d*),(%d+%.?%d*)%s+(.+)")
+                            if x and y and zoneName then
+                                local zoneId = GLV:GetZoneIDByName(zoneName)
+                                if zoneId then
+                                    if not parsedLine.coords then parsedLine.coords = {} end
+                                    table.insert(parsedLine.coords, {
+                                        x = tonumber(x),
+                                        y = tonumber(y),
+                                        z = zoneId,
+                                        type = "goto"
+                                    })
+                                end
+                            end
                             return ""
 
                         elseif tag == "APPLIES" then

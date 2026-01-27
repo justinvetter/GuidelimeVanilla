@@ -778,21 +778,27 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
 
     local targetCoords = nil
 
-    -- Priority 1: Quest-specific coordinates for the current action (QT/QA/QC)
-    -- This is most important for multi-action steps (QT then QA)
-    if currentQuestId then
-        local questCoords = GLV:GetQuestAllCoords(currentQuestId)
-        if questCoords and table.getn(questCoords) > 0 then
-            targetCoords = self:FindCoordinatesByType(questCoords, stepType)
+    -- Priority 1: Explicit GOTO coordinates from lines (highest priority)
+    -- These are manually specified [G x,y Zone] coordinates and should NEVER be overridden
+    local allCoords = collectAllStepCoordinates(stepData)
+    local hasExplicitGoto = false
+
+    for _, coord in ipairs(allCoords) do
+        if coord.type == "goto" then
+            targetCoords = coord
+            hasExplicitGoto = true
+            break
         end
     end
 
-    -- Priority 2: Current action's line coordinates
-    if not targetCoords and currentAction and currentAction.coords and table.getn(currentAction.coords) > 0 then
-        targetCoords = self:FindCoordinatesByType(currentAction.coords, stepType)
+    -- If we have explicit GOTO coords, use them and skip all other coord sources
+    if hasExplicitGoto then
+        local description = self:GetStepDescription(stepData, targetCoords, currentAction)
+        self:AddWaypoint(targetCoords, description)
+        return
     end
 
-    -- Priority 3: TAR coordinates (for steps without quest-specific coords)
+    -- Priority 2: TAR coordinates
     if not targetCoords then
         local tarCoords = extractTARCoordinates(stepData)
         if table.getn(tarCoords) > 0 then
@@ -800,20 +806,30 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
         end
     end
 
-    -- Priority 4: Direct step coordinates
+    -- Priority 3: Quest-specific coordinates for the current action (QT/QA/QC)
+    if not targetCoords and currentQuestId then
+        local questCoords = GLV:GetQuestAllCoords(currentQuestId)
+        if questCoords and table.getn(questCoords) > 0 then
+            targetCoords = self:FindCoordinatesByType(questCoords, stepType)
+        end
+    end
+
+    -- Priority 4: Current action's line coordinates
+    if not targetCoords and currentAction and currentAction.coords and table.getn(currentAction.coords) > 0 then
+        targetCoords = self:FindCoordinatesByType(currentAction.coords, stepType)
+    end
+
+    -- Priority 5: Direct step coordinates
     if not targetCoords and stepData and stepData.coords and table.getn(stepData.coords) > 0 then
         targetCoords = self:FindCoordinatesByType(stepData.coords, stepType)
     end
 
-    -- Priority 5: Line coordinates
-    if not targetCoords then
-        local allCoords = collectAllStepCoordinates(stepData)
-        if table.getn(allCoords) > 0 then
-            targetCoords = self:FindCoordinatesByType(allCoords, stepType)
-        end
+    -- Priority 6: Other line coordinates (non-goto)
+    if not targetCoords and table.getn(allCoords) > 0 then
+        targetCoords = self:FindCoordinatesByType(allCoords, stepType)
     end
 
-    -- Priority 6: Quest objective coordinates (for COMPLETE steps or fallback)
+    -- Priority 7: Quest objective coordinates (for COMPLETE steps or fallback)
     if not targetCoords or stepType == "COMPLETE" then
         local questCoords = findQuestObjectiveCoordinates(stepData, playerPos)
         if questCoords then
