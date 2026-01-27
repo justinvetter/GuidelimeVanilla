@@ -249,7 +249,7 @@ function GLV:LoadGuide(group, guideId)
     if GLV.CharacterTracker then
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
     end
-    
+
     local dropdown = _G["GLV_MainDropdown"]
     if dropdown then
         local guideData = GLV.loadedGuides[group] and GLV.loadedGuides[group][guideId]

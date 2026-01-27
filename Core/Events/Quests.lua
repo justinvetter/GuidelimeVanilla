@@ -262,7 +262,7 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
         GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
     end
 
-    self:UpdateStepNavigation(stepMarked, multiActionStepFound)
+    self:UpdateStepNavigation(stepMarked, multiActionStepFound, actionType)
 
     if GLV.CharacterTracker then
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
@@ -270,7 +270,7 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
 end
 
 -- Handle navigation between steps and update UI highlighting
-function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
+function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound, actionType)
     local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local stepQuestState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepQuestState"}) or {}
@@ -328,9 +328,20 @@ function QuestTracker:UpdateStepNavigation(stepMarked, multiActionStepFound)
             end
 
             -- Update navigation arrow
+            -- For TURNIN actions, delay the update to allow quest log to be updated
             if GLV.GuideNavigation and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[firstUnchecked] then
                 local stepData = GLV.CurrentDisplaySteps[firstUnchecked]
-                GLV.GuideNavigation:OnStepChanged(stepData)
+
+                if actionType == "TURNIN" then
+                    -- Delay navigation update for turnin to allow quest to be removed from log
+                    GLV.Ace:ScheduleEvent("GLV_NavigationUpdate", function()
+                        if GLV.GuideNavigation then
+                            GLV.GuideNavigation:OnStepChanged(stepData)
+                        end
+                    end, 0.5)
+                else
+                    GLV.GuideNavigation:OnStepChanged(stepData)
+                end
             end
         end
     end
