@@ -29,7 +29,8 @@ local CONFIG = {
     colors = {
         even = {0.2,0.2,0.2,0.8},
         odd = {0.1,0.1,0.1,0.8},
-        active = {0.8,0.8,0.2,0.9}
+        active = {0.8,0.8,0.2,0.9},
+        ongoing = {0.3,0.5,0.8,0.9}
     },
     titleFrame = GLV_MainLoadedGuideTitle
 }
@@ -37,12 +38,149 @@ local CONFIG = {
 -- Reusable FontString for text measurement (prevents memory leak)
 local measureFontString = nil
 
+--[[ ONGOING STEPS MANAGER ]]--
+-- Manages pinned ongoing steps that remain visible at top while guide progresses
+
+local OngoingStepsManager = {
+    activeSteps = {},  -- {displayIndex = true}
+}
+
+function OngoingStepsManager:Activate(displayIndex)
+    self.activeSteps[displayIndex] = true
+    self:Save()
+end
+
+function OngoingStepsManager:Deactivate(displayIndex)
+    self.activeSteps[displayIndex] = nil
+    self:Save()
+end
+
+function OngoingStepsManager:IsActive(displayIndex)
+    return self.activeSteps[displayIndex] == true
+end
+
+function OngoingStepsManager:GetActiveIndices()
+    local indices = {}
+    for idx, _ in pairs(self.activeSteps) do
+        table.insert(indices, idx)
+    end
+    table.sort(indices)
+    return indices
+end
+
+function OngoingStepsManager:GetActiveCount()
+    local count = 0
+    for _ in pairs(self.activeSteps) do
+        count = count + 1
+    end
+    return count
+end
+
+function OngoingStepsManager:Save()
+    local guideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"})
+    if guideId then
+        GLV.Settings:SetOption(self.activeSteps, {"Guide", "Guides", guideId, "ActiveOngoingSteps"})
+    end
+end
+
+function OngoingStepsManager:Load(guideId)
+    if guideId then
+        self.activeSteps = GLV.Settings:GetOption({"Guide", "Guides", guideId, "ActiveOngoingSteps"}) or {}
+    else
+        self.activeSteps = {}
+    end
+end
+
+function OngoingStepsManager:Clear()
+    self.activeSteps = {}
+end
+
+GLV.OngoingStepsManager = OngoingStepsManager
+
+--[[ PINNED SECTION FUNCTIONS ]]--
+
+-- Cleanup all children from a frame
+local function cleanupFrameChildren(frame)
+    if not frame then return end
+    local children = {frame:GetChildren()}
+    for _, child in pairs(children) do
+        if child and type(child) == "table" then
+            child:Hide()
+            child:SetParent(nil)
+        end
+    end
+    local regions = {frame:GetRegions()}
+    for _, region in pairs(regions) do
+        if region and region.Hide then
+            region:Hide()
+        end
+    end
+end
+
+-- Adjust scroll frame position based on pinned section height
+local function AdjustScrollFramePosition(pinnedHeight)
+    local scrollFrame = getglobal("GLV_MainScrollFrame")
+    local pinnedFrame = getglobal("GLV_MainPinnedSteps")
+
+    if not scrollFrame then return end
+
+    -- Base offset is -65 from top of GLV_Main
+    local baseYOffset = -65
+
+    if pinnedHeight > 0 and pinnedFrame then
+        pinnedFrame:SetHeight(pinnedHeight)
+        pinnedFrame:Show()
+        -- Adjust Y offset to account for pinned section
+        local newYOffset = baseYOffset - pinnedHeight - 5
+        scrollFrame:ClearAllPoints()
+        scrollFrame:SetPoint("TOPLEFT", GLV_Main, "TOPLEFT", 15, newYOffset)
+        scrollFrame:SetHeight(285 - pinnedHeight - 5)
+    else
+        if pinnedFrame then
+            pinnedFrame:Hide()
+        end
+        scrollFrame:ClearAllPoints()
+        scrollFrame:SetPoint("TOPLEFT", GLV_Main, "TOPLEFT", 15, baseYOffset)
+        scrollFrame:SetHeight(285)
+    end
+end
+
 -- Debounce control for RefreshGuide
 local refreshGuideScheduled = false
 GLV.RefreshGuidePending = false
 
 -- Track FontStrings for XP progress updates
 GLV.XPProgressTrackers = {}
+
+-- Track FontStrings for ongoing step objectives
+GLV.OngoingObjectivesTrackers = {}
+
+-- Update ongoing objectives display (called by QuestTracker events)
+function GLV:UpdateOngoingObjectivesDisplay()
+    if not GLV.QuestTracker or not GLV.OngoingObjectivesTrackers then return end
+    if table.getn(GLV.OngoingObjectivesTrackers) == 0 then return end
+
+    -- Group trackers by questId to avoid repeated quest log lookups
+    local questObjectivesCache = {}
+
+    for _, tracker in ipairs(GLV.OngoingObjectivesTrackers) do
+        if tracker.fontString and tracker.questId then
+            -- Get objectives from cache or fetch
+            if not questObjectivesCache[tracker.questId] then
+                local objectives, _, _ = GLV.QuestTracker:GetQuestProgress(tracker.questId)
+                questObjectivesCache[tracker.questId] = objectives or {}
+            end
+
+            local objectives = questObjectivesCache[tracker.questId]
+            if objectives and objectives[tracker.objectiveIndex] then
+                local obj = objectives[tracker.objectiveIndex]
+                local objColor = obj.completed and "|cFF00FF00" or "|cFFFFFF00"
+                local objText = objColor .. "  - " .. obj.text .. "|r"
+                tracker.fontString:SetText(objText)
+            end
+        end
+    end
+end
 
 -- Update XP progress display on tracked FontStrings (only on active step)
 function GLV:UpdateXPProgressDisplay()
@@ -231,9 +369,12 @@ local function groupSteps(guide, stepState, currentGuideId)
                 bindLocation = guide.steps[i].bindLocation,
                 collectItems = guide.steps[i].collectItems,
             })
-            
+
             stepFrameData.hasCheckbox = true
-            
+
+            -- Propagate ongoing flag from parsed step
+            stepFrameData.ongoing = guide.steps[i].ongoing or false
+
             if guide.steps[i].experienceRequirement then
                 stepFrameData.hasCheckbox = true
             end
@@ -245,7 +386,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                     table.insert(stepFrameData.questTags, tag)
                 end
             end
-            
+
             local displayIndex = safe_tablelen(displaySteps) + 1
             originalIndexToDisplayIndex[i] = displayIndex
             displayIndexToOriginalIndex[displayIndex] = i
@@ -268,17 +409,20 @@ end
 -- Calculate scroll position for a specific step
 local function calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
     local targetScroll = 0
+    local framesFound = 0
     for i = 1, stepIndex - 1 do
         local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
         if stepFrame and stepFrame.GetHeight then
             targetScroll = targetScroll + stepFrame:GetHeight()
+            framesFound = framesFound + 1
         end
     end
-    
-    if stepIndex > 1 then
-        targetScroll = targetScroll + (math.abs(spacing) * (stepIndex - 1))
+
+    -- Only add spacing for frames that actually exist (handles skipped ongoing steps)
+    if framesFound > 0 then
+        targetScroll = targetScroll + (math.abs(spacing) * framesFound)
     end
-    
+
     return math.max(0, targetScroll)
 end
 
@@ -451,6 +595,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
 
     -- Clear progress trackers for new guide
     GLV.XPProgressTrackers = {}
+    GLV.OngoingObjectivesTrackers = {}
 
     local lastLine = nil
     local totalHeight = 0
@@ -506,7 +651,197 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
         GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
     end
 
+    -- Handle ongoing step activation: if active step is an [O] step, activate it and find next non-ongoing step
+    local activeStepData = displaySteps[activeStep]
+    if activeStepData and activeStepData.ongoing then
+        local origIdx = displayIndexToOriginalIndex[activeStep]
+        if origIdx and not stepState[origIdx] then
+            -- Activate this ongoing step
+            if not OngoingStepsManager:IsActive(activeStep) then
+                OngoingStepsManager:Activate(activeStep)
+            end
+            -- Find next non-ongoing unchecked step
+            for i2 = activeStep + 1, totalSteps do
+                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                    local orig = displayIndexToOriginalIndex[i2]
+                    if orig and not stepState[orig] then
+                        if not displaySteps[i2].ongoing then
+                            activeStep = i2
+                            GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+                            break
+                        else
+                            -- Another ongoing step, activate it too
+                            if not OngoingStepsManager:IsActive(i2) then
+                                OngoingStepsManager:Activate(i2)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Render pinned ongoing steps section
+    local pinnedChild = getglobal("GLV_MainPinnedStepsChild")
+    local pinnedFrame = getglobal("GLV_MainPinnedSteps")
+    local ongoingIndices = OngoingStepsManager:GetActiveIndices()
+    local pinnedTotalHeight = 0
+
+    if pinnedChild and pinnedFrame then
+        cleanupFrameChildren(pinnedChild)
+
+        if table.getn(ongoingIndices) > 0 then
+            local pinnedLastLine = nil
+
+            for _, ongoingIdx in ipairs(ongoingIndices) do
+                local step = displaySteps[ongoingIdx]
+                if step then
+                    local origIndexForThisStep = displayIndexToOriginalIndex[ongoingIdx]
+                    local isCompleted = origIndexForThisStep and stepState[origIndexForThisStep]
+
+                    -- Skip if already completed
+                    if not isCompleted then
+                        local frameName = pinnedChild:GetName().."PinnedStep"..guideId.."_"..ongoingIdx
+                        local frame = CreateFrame("Frame", frameName, pinnedChild)
+
+                        frame:Show()
+                        frame:SetWidth(CONFIG.totalWidth)
+                        frame:SetBackdrop(CONFIG.backdrop)
+                        if frame.EnableMouse then frame:EnableMouse(true) end
+
+                        -- Use BLUE color for ongoing steps
+                        frame:SetBackdropColor(unpack(CONFIG.colors.ongoing))
+
+                        local yOffset = -2
+                        local frameHeight = 0
+
+                        for li, line in ipairs(step.lines) do
+                            local hasIcon = type(line.icon) == "string" and line.icon ~= "" and line.icon ~= nil
+                            local reservedIconWidth = CONFIG.iconWidth + 4
+                            local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
+
+                            local textFrame = frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+                            local wrappedText, lineCount, textHeight = wrapText(line.text or "", availableWidth)
+                            textFrame:SetText(wrappedText)
+                            textFrame:SetJustifyH("LEFT")
+                            textFrame:SetJustifyV("TOP")
+                            textFrame:SetWidth(availableWidth)
+                            local usedHeight = (lineCount * CONFIG.fontLineHeight)
+                            textFrame:SetHeight(usedHeight)
+
+                            local offsetX = reservedIconWidth
+
+                            if hasIcon then
+                                local iconButton = CreateFrame("Button", nil, pinnedChild)
+                                iconButton:SetWidth(CONFIG.iconWidth)
+                                iconButton:SetHeight(CONFIG.iconWidth)
+                                iconButton:SetPoint("TOPRIGHT", textFrame, "TOPLEFT", -2, CONFIG.iconYOffset)
+                                iconButton:EnableMouse(true)
+                                iconButton:SetFrameStrata("TOOLTIP")
+                                iconButton:Show()
+
+                                local icon = iconButton:CreateTexture(nil, "OVERLAY")
+                                icon:SetAllPoints(iconButton)
+                                icon:SetTexture(line.icon)
+
+                                if line.useItemId then
+                                    local itemIdForClick = line.useItemId
+                                    local function handleUse()
+                                        useItemById(itemIdForClick)
+                                    end
+                                    iconButton:SetScript("OnClick", handleUse)
+                                end
+                            end
+
+                            textFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 2 + offsetX, yOffset)
+                            yOffset = yOffset - (usedHeight + (line.isOC and CONFIG.ocSpacing or CONFIG.lineSpacing))
+                            frameHeight = frameHeight + (usedHeight + (line.isOC and CONFIG.ocSpacing or CONFIG.lineSpacing))
+                        end
+
+                        -- Add quest objectives for ongoing steps
+                        if step.questTags and table.getn(step.questTags) > 0 then
+                            for _, questTag in ipairs(step.questTags) do
+                                if questTag.questId and GLV.QuestTracker then
+                                    local objectives, allComplete, numObjectives = GLV.QuestTracker:GetQuestProgress(questTag.questId)
+                                    if objectives and table.getn(objectives) > 0 then
+                                        for objIdx, obj in ipairs(objectives) do
+                                            local objColor = obj.completed and "|cFF00FF00" or "|cFFFFFF00"
+                                            local objText = objColor .. "  - " .. obj.text .. "|r"
+
+                                            local objFrame = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                                            local reservedIconWidth = CONFIG.iconWidth + 4
+                                            local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
+                                            local wrappedObj, objLineCount = wrapText(objText, availableWidth)
+                                            objFrame:SetText(wrappedObj)
+                                            objFrame:SetJustifyH("LEFT")
+                                            objFrame:SetJustifyV("TOP")
+                                            objFrame:SetWidth(availableWidth)
+                                            local objHeight = objLineCount * CONFIG.fontLineHeight
+                                            objFrame:SetHeight(objHeight)
+                                            objFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 2 + reservedIconWidth, yOffset)
+
+                                            yOffset = yOffset - (objHeight + 2)
+                                            frameHeight = frameHeight + (objHeight + 2)
+
+                                            -- Track for updates
+                                            table.insert(GLV.OngoingObjectivesTrackers, {
+                                                fontString = objFrame,
+                                                questId = questTag.questId,
+                                                objectiveIndex = objIdx,
+                                                pinnedStepIdx = ongoingIdx
+                                            })
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                        -- Checkbox for pinned step
+                        if step.hasCheckbox then
+                            local check = createCheckbox(frame)
+                            check:SetChecked(false)
+                            local capturedIdx = ongoingIdx
+                            check:SetScript("OnClick", function()
+                                local checked = not not check:GetChecked()
+                                local origIdx = displayIndexToOriginalIndex[capturedIdx]
+                                if origIdx then
+                                    stepState[origIdx] = checked
+                                    GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+                                end
+                                if checked then
+                                    -- Deactivate the ongoing step when completed
+                                    OngoingStepsManager:Deactivate(capturedIdx)
+                                end
+                                GLV:RefreshGuide()
+                            end)
+                        end
+
+                        frame:SetHeight(frameHeight - CONFIG.lineSpacing + 4)
+                        frame:SetPoint("TOPLEFT", pinnedLastLine or pinnedChild, pinnedLastLine and "BOTTOMLEFT" or "TOPLEFT", 0, pinnedLastLine and CONFIG.spacing or 0)
+                        pinnedLastLine = frame
+                        pinnedTotalHeight = pinnedTotalHeight + frameHeight + math.abs(CONFIG.spacing)
+                    end
+                end
+            end
+
+            pinnedChild:SetHeight(math.max(1, pinnedTotalHeight))
+        end
+    end
+
+    -- Adjust scroll frame position based on pinned section
+    AdjustScrollFramePosition(pinnedTotalHeight)
+
     for idx, step in ipairs(displaySteps) do
+        -- Skip ongoing active steps that are NOT completed (they're shown in pinned section)
+        local skipThisStep = false
+        if OngoingStepsManager:IsActive(idx) then
+            local origIdx = displayIndexToOriginalIndex[idx]
+            if not (origIdx and stepState[origIdx]) then
+                skipThisStep = true
+            end
+        end
+
+        if not skipThisStep then
         local frameName = scrollChild:GetName().."Step"..guideId.."_"..idx
         local frame = CreateFrame("Frame", frameName, scrollChild)
 
@@ -676,6 +1011,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
         frame:SetPoint("TOPLEFT", lastLine or scrollChild, lastLine and "BOTTOMLEFT" or "TOPLEFT", 0, lastLine and CONFIG.spacing or 0)
         lastLine = frame
         totalHeight = totalHeight + frameHeight + math.abs(CONFIG.spacing)
+        end -- end of if not skipThisStep
     end
 
     scrollChild:SetHeight(math.max(1, totalHeight))
@@ -701,7 +1037,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             -- Update XP progress display after scroll (only affects active step)
             GLV:UpdateXPProgressDisplay()
             GLV.RefreshGuidePending = false
-        end, 0.1)
+        end, 0.15)
     else
         GLV.Ace:ScheduleEvent(function()
             if GLV_MainScrollFrame then
@@ -711,7 +1047,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             -- Update XP progress display
             GLV:UpdateXPProgressDisplay()
             GLV.RefreshGuidePending = false
-        end, 0.1)
+        end, 0.15)
     end
      
     createTitle(guide)

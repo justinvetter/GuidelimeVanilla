@@ -140,6 +140,28 @@
 
             </Frame>
 
+            <!-- Pinned Ongoing Steps Section -->
+            <Frame name="$parentPinnedSteps" hidden="true">
+                <Size>
+                    <AbsDimension x="275" y="1"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT">
+                        <Offset x="15" y="-65"/>
+                    </Anchor>
+                </Anchors>
+                <Frames>
+                    <Frame name="$parentChild">
+                        <Size>
+                            <AbsDimension x="275" y="1"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPLEFT"/>
+                        </Anchors>
+                    </Frame>
+                </Frames>
+            </Frame>
+
             <ScrollFrame name="$parentScrollFrame" inherits="UIPanelScrollFrameTemplate">
                 <Size>
                     <AbsDimension x="275" y="285"/>

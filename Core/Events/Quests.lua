@@ -91,6 +91,10 @@ function QuestTracker:OnQuestLogUpdate(forceCheck)
         end
     end
 
+    -- Update ongoing objectives display in pinned section
+    if GLV.UpdateOngoingObjectivesDisplay then
+        GLV:UpdateOngoingObjectivesDisplay()
+    end
 end
 
 
@@ -250,9 +254,13 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
                     if allActionsDone then
                         stepState[origIdx] = true
                         stepMarked = true
-                    end
 
-                    break
+                        -- Deactivate ongoing step if it was active
+                        if GLV.OngoingStepsManager and GLV.OngoingStepsManager:IsActive(di) then
+                            GLV.OngoingStepsManager:Deactivate(di)
+                        end
+                    end
+                    -- Don't break - continue to mark ALL steps with the same quest action
                 end
             end
         end

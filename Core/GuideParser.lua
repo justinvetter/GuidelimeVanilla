@@ -15,7 +15,7 @@ local codes = {
     N   = "NAME",
     NX  = "NEXT_GUIDE",
     D   = "DESCRIPTION",
-    O   = "OPTIONAL",
+    O   = "ONGOING",
     OC  = "OPTIONAL_COMPLETE_WITH_NEXT",
     GA  = "GUIDE_APPLIES",
     Q   = "QUEST",
@@ -172,8 +172,8 @@ function Parser:parseGuide(guide, group)
                             parsedGuide.clickToNext = true
                             return ""
 
-                        elseif tag == "OPTIONAL" then
-                            parsedLine.optional = true
+                        elseif tag == "ONGOING" then
+                            parsedLine.ongoing = true
                             return ""
 
                         elseif tag == "OPTIONAL_COMPLETE_WITH_NEXT" then
@@ -267,7 +267,11 @@ function Parser:parseGuide(guide, group)
                             })
                             
                             if questCoords and table.getn(questCoords) > 0 then
-                                parsedLine.coords = questCoords
+                                -- Append quest coords instead of replacing (preserve explicit [G] coords)
+                                if not parsedLine.coords then parsedLine.coords = {} end
+                                for _, coord in ipairs(questCoords) do
+                                    table.insert(parsedLine.coords, coord)
+                                end
                             end
 
                             fullText = fullText .. "|c" .. GLV.Colors[tag] .. questTitle .. "|r"

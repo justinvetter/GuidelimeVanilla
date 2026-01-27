@@ -158,6 +158,11 @@ function GLV:LoadGuide(group, guideId)
     if GLV.GuideNavigation then
         GLV.GuideNavigation:ClearAllWaypoints()
     end
+
+    -- Clear previous ongoing steps when changing guides
+    if GLV.OngoingStepsManager then
+        GLV.OngoingStepsManager:Clear()
+    end
     
     local guideData = GLV.loadedGuides[group] and GLV.loadedGuides[group][guideId]
     if not guideData then
@@ -175,9 +180,14 @@ function GLV:LoadGuide(group, guideId)
     end
     
     GLV.Settings:SetOption(guideId, {"Guide", "CurrentGuide"})
-    
+
+    -- Load ongoing steps state for this guide
+    if GLV.OngoingStepsManager then
+        GLV.OngoingStepsManager:Load(guideId)
+    end
+
     GLV.CurrentGuide = guide
-    
+
     GLV:CreateGuideSteps(scrollChild, guide, guideId)
     
     local scrollFrame = _G["GLV_MainScrollFrame"]
