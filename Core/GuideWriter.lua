@@ -342,6 +342,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 collectItems = guide.steps[i].collectItems,
                 targetIds = guide.steps[i].targetIds,
                 hearthDestination = guide.steps[i].hearthDestination,
+                learnSpells = guide.steps[i].learnSpells,
             })
             if guide.steps[i].icon and not stepFrameData.icon then
                 stepFrameData.icon = guide.steps[i].icon
@@ -376,6 +377,7 @@ local function groupSteps(guide, stepState, currentGuideId)
                 collectItems = guide.steps[i].collectItems,
                 targetIds = guide.steps[i].targetIds,
                 hearthDestination = guide.steps[i].hearthDestination,
+                learnSpells = guide.steps[i].learnSpells,
             })
 
             stepFrameData.hasCheckbox = true

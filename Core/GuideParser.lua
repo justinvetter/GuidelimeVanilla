@@ -210,16 +210,16 @@ function Parser:parseGuide(guide, group)
 
                         elseif tag == "LEARN" then
                             parsedLine.icon = "Interface\\GossipFrame\\TrainerGossipIcon"
-                            if not parsedLine.learnTags then parsedLine.learnTags = {} end
-                            local stepIndex = table.getn(parsedGuide.steps) + 1
-                            if not parsedLine.learnTags[stepIndex] then parsedLine.learnTags[stepIndex] = {} end
-                            
+                            parsedLine.hasCheckbox = true
+                            parsedLine.stepType = "LEARN"
+                            if not parsedLine.learnSpells then parsedLine.learnSpells = {} end
+
                             local spellId, spellName = self:Learn(tagContent)
-                            table.insert(parsedLine.learnTags[stepIndex], {
+                            table.insert(parsedLine.learnSpells, {
                                 spellId = spellId,
                                 spellName = spellName
                             })
-                            
+
                             return "|c" .. GLV.Colors[tag] .. spellName .. "|r"
 
                         elseif tag == "COLLECT_ITEM" then

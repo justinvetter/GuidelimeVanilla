@@ -20,11 +20,16 @@ function CharacterTracker:Init()
 
         GLV.Ace:RegisterEvent("LEARNED_SPELL_IN_TAB", function() self:OnSpellLearned() end)
     end
-    
+
     self.previousPlayerLevel = UnitLevel("player")
     self.previousPlayerXP = UnitXP("player")
 
     self.knownSpells = self:BuildKnownSpellsList()
+
+    -- Check for already learned spells after guide loads
+    GLV.Ace:ScheduleEvent("GLV_InitSpellCheck", function()
+        self:OnSpellLearned()
+    end, 1)
 end
 
 
@@ -76,101 +81,131 @@ function CharacterTracker:OnSpellLearned()
     end
 
     local currentSpells = self:BuildKnownSpellsList()
-    
-    local hasNewSpells = false
-    for spellName, _ in pairs(currentSpells) do
-        if not self.knownSpells[spellName] then
-            hasNewSpells = true
-            break
-        end
-    end
-    
     self.knownSpells = currentSpells
 
-    local currentGuideId = GLV.Settings:GetOption({"Guide","CurrentGuide"}) or "Unknown"
-    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
     local diCount = GLV.CurrentDisplayStepsCount or 0
     local diToOrig = GLV.CurrentDisplayToOriginal or {}
     local stepsCompleted = false
-       
+
     for di = 1, diCount do
         local step = GLV.CurrentDisplaySteps[di]
         local origIdx = diToOrig[di]
 
-        if step and origIdx and not stepState[origIdx] then
-            
-            if step.lines then
+        if step and origIdx and not stepState[origIdx] and step.lines then
+            for _, line in ipairs(step.lines) do
+                -- Use new learnSpells structure
+                if line.learnSpells and table.getn(line.learnSpells) > 0 then
+                    local allSpellsLearned = true
 
-                for _, line in ipairs(step.lines) do
-            
-                    if line.learnTags and line.learnTags[origIdx] then
-                        
-                        local allSpellsLearned = true
-                        
-                        for _, learnTag in ipairs(line.learnTags[origIdx]) do
-                            local spellId = learnTag.spellId
-                            local spellName = learnTag.spellName
-                            local spellFound = false
-                                                    
-                            if spellName then
-                                if currentSpells[spellName] then
-                                    spellFound = true
-                                else
-                                    local lowerSpellName = string.lower(spellName)
-                                    for knownSpell, _ in pairs(currentSpells) do
-                                        if string.lower(knownSpell) == lowerSpellName then
-                                            spellFound = true
+                    for _, learnSpell in ipairs(line.learnSpells) do
+                        local spellId = learnSpell.spellId
+                        local spellName = learnSpell.spellName
+                        local spellFound = false
+
+                        -- Try Nampower's API to check if spell is learned
+                        if spellId and GetSpellNameAndRankForId then
+                            -- Get the spell name from the ID (e.g., 3279 -> "Apprentice First Aid")
+                            local actualName, actualRank = GetSpellNameAndRankForId(spellId)
+
+                            if actualName then
+                                -- Determine required tier and skill name from spell name
+                                local requiredMaxSkill = nil
+                                local skillName = actualName
+
+                                if string.find(actualName, "^Apprentice ") then
+                                    requiredMaxSkill = 75
+                                    skillName = string.gsub(actualName, "^Apprentice ", "")
+                                elseif string.find(actualName, "^Journeyman ") then
+                                    requiredMaxSkill = 150
+                                    skillName = string.gsub(actualName, "^Journeyman ", "")
+                                elseif string.find(actualName, "^Expert ") then
+                                    requiredMaxSkill = 225
+                                    skillName = string.gsub(actualName, "^Expert ", "")
+                                elseif string.find(actualName, "^Artisan ") then
+                                    requiredMaxSkill = 300
+                                    skillName = string.gsub(actualName, "^Artisan ", "")
+                                elseif string.find(actualName, "^Master ") then
+                                    requiredMaxSkill = 375
+                                    skillName = string.gsub(actualName, "^Master ", "")
+                                end
+
+                                if requiredMaxSkill then
+                                    -- Check player's skill max level
+                                    for i = 1, GetNumSkillLines() do
+                                        local name, header, isExpanded, skillRank, numTempPoints, skillModifier, skillMaxRank = GetSkillLineInfo(i)
+                                        if name == skillName then
+                                            spellFound = (skillMaxRank >= requiredMaxSkill)
                                             break
                                         end
                                     end
-                                    
-                                    if not spellFound then
-                                        for knownSpell, _ in pairs(currentSpells) do
-                                            local cleanKnownSpell = string.gsub(knownSpell, "%b()", "")
-                                            cleanKnownSpell = string.gsub(cleanKnownSpell, "%s+$", "")
-                                            
-                                            if string.lower(cleanKnownSpell) == lowerSpellName then
-                                                spellFound = true
-                                                break
-                                            end
-                                        end
+                                else
+                                    -- No tier prefix, just check if spell is in spellbook
+                                    if GetSpellIdForName then
+                                        local foundId = GetSpellIdForName(actualName)
+                                        spellFound = (foundId and foundId > 0)
                                     end
                                 end
-                                
-                            end
-                            
-                            if not spellFound then
-                                allSpellsLearned = false
-                                break
                             end
                         end
-                        
-                        if allSpellsLearned then
-                            stepState[origIdx] = true
-                            GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
-                            stepsCompleted = true
+
+                        if not spellFound then
+                            allSpellsLearned = false
+                            break
                         end
-                    end                        
+                    end
+
+                    if allSpellsLearned then
+                        stepState[origIdx] = true
+                        GLV.Settings:SetOption(stepState, {"Guide", "Guides", currentGuideId, "StepState"})
+                        stepsCompleted = true
+                    end
                 end
             end
         end
     end
-    
+
     if stepsCompleted then
-        if GLV.QuestTracker then
-            GLV.QuestTracker:UpdateStepNavigation(true, false)
-        end
-        
-        if GLV.GuideNavigation then
-            local currentStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
-            if currentStep > 0 and GLV.CurrentDisplaySteps and GLV.CurrentDisplaySteps[currentStep] then
-                local stepData = GLV.CurrentDisplaySteps[currentStep]
-                GLV.GuideNavigation:OnStepChanged(stepData)
+        self:UpdateActiveStep()
+        GLV:RefreshGuide()
+    end
+
+    return stepsCompleted
+end
+
+-- Update active step to next uncompleted step
+function CharacterTracker:UpdateActiveStep()
+    if not GLV.CurrentGuide or not GLV.CurrentDisplaySteps then return end
+
+    local guide = GLV.CurrentGuide
+    local currentGuideId = guide.id or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
+    local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+    local totalSteps = table.getn(GLV.CurrentDisplaySteps)
+
+    -- Find the next uncompleted step
+    local newActiveStep = currentActiveStep
+    for i = 1, totalSteps do
+        if GLV.CurrentDisplaySteps[i] and GLV.CurrentDisplaySteps[i].hasCheckbox then
+            local originalIndex = GLV.CurrentDisplayToOriginal[i]
+            if originalIndex and not stepState[originalIndex] then
+                newActiveStep = i
+                break
             end
         end
     end
-    
-    return stepsCompleted
+
+    -- Update active step if changed
+    if newActiveStep ~= currentActiveStep then
+        GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+        GLV_MainLoadedGuideCounter:SetText("(" .. tostring(newActiveStep) .. "/" .. tostring(totalSteps) .. ")")
+
+        -- Update navigation
+        if GLV.GuideNavigation and GLV.CurrentDisplaySteps[newActiveStep] then
+            GLV.GuideNavigation:UpdateWaypointForStep(GLV.CurrentDisplaySteps[newActiveStep])
+        end
+    end
 end
 
 
