@@ -161,8 +161,6 @@ function TaxiTracker:CheckAndCompleteFlyToSteps(destinationName)
                             if GLV.Debug then
                                 GLV.Ace:Print("TaxiTracker", "Auto-completed FLY_TO step " .. displayIndex .. " for: " .. destinationName)
                             end
-
-                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed: Fly to " .. destinationName)
                         end
                     end
                 end
@@ -213,8 +211,6 @@ function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
                             if GLV.Debug then
                                 GLV.Ace:Print("TaxiTracker", "Auto-completed GET_FP step " .. displayIndex .. " for: " .. flightPathName)
                             end
-
-                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed: Get flight path " .. flightPathName)
                         end
                     end
                 end
