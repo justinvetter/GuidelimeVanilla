@@ -29,6 +29,8 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Custom Arrow Display**: Built-in navigation arrow (no TomTom needed!)
 - **Automatic Waypoints**: Creates waypoints for quest objectives automatically
 - **Smart Coordinate Selection**: Automatically selects the best location based on step type (quest giver, turn-in NPC, or objective area)
+- **Zone-Aware Navigation**: Arrow automatically hides when in different zones and updates when you enter the correct zone
+- **[TAR] Tag Support**: Navigate to specific NPCs using [TAR] tags in guides
 - **Quest Objectives Display**: Shows kill/collect progress directly on the navigation frame
 - **Real-time Distance Updates**: Color-coded distance indicators (green=close, yellow=medium, red=far)
 - **Movable Frame**: Hold Shift + drag to reposition the arrow
@@ -74,6 +76,7 @@ GLV:RegisterGuide([[
 [QT123] Turn in quest
 [O][QC456] Ongoing step - stays pinned while you continue
 [G 45.5,32 Westfall] Go to specific coordinates
+[TAR823] Navigate to NPC with ID 823
 [P Stormwind] Get flight path
 [F Stormwind] Fly to destination - auto-completes when flight is taken
 [NX 10-20 Next Guide Name]
