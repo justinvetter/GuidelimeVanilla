@@ -340,8 +340,8 @@ function GuideNavigation:UpdateNavigation()
         navigationFrame.objective:SetText("Guide Objective")
     end
 
-    -- Display quest progress objectives
-    if self.currentQuestId and GLV.QuestTracker then
+    -- Display quest progress objectives (only for QC/COMPLETE steps, not QT/QA)
+    if self.currentQuestId and GLV.QuestTracker and self.currentActionType == "COMPLETE" then
         local objectives, allComplete = GLV.QuestTracker:GetQuestProgress(self.currentQuestId)
         if objectives and table.getn(objectives) > 0 then
             local progressLines = {}
@@ -498,6 +498,75 @@ local function findQuestObjectiveCoordinates(stepData, playerPos)
     return nil
 end
 
+--[[ QUEST STATUS FUNCTIONS ]]--
+
+-- Check if a quest is in the player's quest log and its completion status
+-- Returns: inLog (boolean), isComplete (boolean)
+function GuideNavigation:GetQuestStatus(questId)
+    if not questId then return false, false end
+
+    local numEntries = GetNumQuestLogEntries()
+    for i = 1, numEntries do
+        local title, level, tag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(i)
+        if title and not isHeader then
+            local logQuestId = GLV:GetQuestIDByName(title)
+            if tonumber(logQuestId) == tonumber(questId) then
+                return true, (isComplete == 1 or isComplete == true)
+            end
+        end
+    end
+
+    return false, false
+end
+
+-- Get the first uncompleted quest action from step (QT before QA)
+-- Returns: questTag, questId, actionType
+function GuideNavigation:GetCurrentQuestAction(stepData)
+    if not stepData or not stepData.lines then
+        return nil, nil, nil
+    end
+
+    -- Collect all quest tags in order from the step
+    local questActions = {}
+    for _, line in ipairs(stepData.lines) do
+        if line.questTags then
+            for _, questTag in ipairs(line.questTags) do
+                table.insert(questActions, {
+                    tag = questTag.tag,
+                    questId = questTag.questId,
+                    title = questTag.title,
+                    coords = line.coords
+                })
+            end
+        end
+    end
+
+    -- Find the first action that needs to be done
+    for _, action in ipairs(questActions) do
+        local inLog, isComplete = self:GetQuestStatus(action.questId)
+
+        if action.tag == "TURNIN" then
+            -- QT: Need to turn in if quest is in log
+            if inLog then
+                return action, action.questId, "TURNIN"
+            end
+        elseif action.tag == "ACCEPT" then
+            -- QA: Need to accept if quest is NOT in log
+            if not inLog then
+                return action, action.questId, "ACCEPT"
+            end
+        elseif action.tag == "COMPLETE" then
+            -- QC: Need to complete if quest is in log but not complete
+            if inLog and not isComplete then
+                return action, action.questId, "COMPLETE"
+            end
+        end
+    end
+
+    -- All actions done, return nil
+    return nil, nil, nil
+end
+
 --[[ GUIDE INTEGRATION FUNCTIONS ]]--
 
 -- Gets the step type from step data
@@ -516,11 +585,14 @@ function GuideNavigation:GetStepType(stepData)
 end
 
 -- Generates step description based on step data and target coordinates
-function GuideNavigation:GetStepDescription(stepData, targetCoords)
+function GuideNavigation:GetStepDescription(stepData, targetCoords, currentAction)
     local description = "Guide Step"
 
-    local questId = 0
-    if stepData and stepData.lines then
+    -- Use currentAction's questId if available, otherwise find from step data
+    local questId = nil
+    if currentAction and currentAction.questId then
+        questId = currentAction.questId
+    elseif stepData and stepData.lines then
         for _, line in ipairs(stepData.lines) do
             if line.questId then
                 questId = line.questId
@@ -531,13 +603,48 @@ function GuideNavigation:GetStepDescription(stepData, targetCoords)
 
     -- Store questId for progress display
     self.currentQuestId = questId
-    
+
     if questId then
         local questName = GLV:GetQuestNameByID(questId)
         local questLevel = GLV:GetQuestLevelByID(questId)
-        
+
         if questName then
-            if targetCoords and targetCoords.type == "target" then
+            -- Determine action type from currentAction or targetCoords
+            local actionType = currentAction and currentAction.tag or nil
+
+            -- Add quest icon symbol based on action type (yellow color)
+            local questIcon = ""
+            if actionType == "TURNIN" then
+                questIcon = "|cFFFFFC01?|r "
+            elseif actionType == "ACCEPT" then
+                questIcon = "|cFFFFFC01!|r "
+            end
+
+            if actionType == "TURNIN" then
+                -- Turn in quest - show turn in destination
+                if targetCoords and targetCoords.npcId then
+                    local npcName = GLV:getTargetName(targetCoords.npcId)
+                    if npcName then
+                        description = questName .. " | Turn in to " .. npcName
+                    else
+                        description = questName .. " | Turn in"
+                    end
+                else
+                    description = questName .. " | Turn in"
+                end
+            elseif actionType == "ACCEPT" then
+                -- Accept quest - show where to accept
+                if targetCoords and targetCoords.npcId then
+                    local npcName = GLV:getTargetName(targetCoords.npcId)
+                    if npcName then
+                        description = questName .. " | Accept from " .. npcName
+                    else
+                        description = questName .. " | Accept"
+                    end
+                else
+                    description = questName .. " | Accept"
+                end
+            elseif targetCoords and targetCoords.type == "target" then
                 if targetCoords.npcId then
                     local npcName = GLV:getTargetName(targetCoords.npcId)
                     if npcName then
@@ -572,12 +679,12 @@ function GuideNavigation:GetStepDescription(stepData, targetCoords)
                 description = questName
             end
 
-            description = "[" .. questLevel .. "]" .. " | " .. description
+            description = questIcon .. "[" .. questLevel .. "]" .. " | " .. description
         else
             description = "Quest " .. questId
         end
     end
-    
+
     return description
 end
 
@@ -649,47 +756,90 @@ end
 -- Updates waypoint for a specific guide step
 function GuideNavigation:UpdateWaypointForStep(stepData)
     self:RemoveCurrentWaypoint()
-    
+
     -- Get current player position
     playerPos = self:GetPlayerPosition()
     if not playerPos then
         return
     end
-    
-    local targetCoords = nil
-    local stepType = self:GetStepType(stepData)
-    
-    -- Try different coordinate sources in order of priority
-    -- 1. TAR coordinates (highest priority)
-    local tarCoords = extractTARCoordinates(stepData)
-    if table.getn(tarCoords) > 0 then
-        targetCoords = tarCoords[1]
+
+    -- Get the current quest action (first uncompleted: QT > QA > QC)
+    local currentAction, currentQuestId, actionType = self:GetCurrentQuestAction(stepData)
+
+    -- Use the current action's type, or fallback to step's type
+    local stepType = actionType or self:GetStepType(stepData)
+
+    -- Store current quest and action type for progress display
+    if currentQuestId then
+        self.currentQuestId = currentQuestId
     end
-    
-    -- 2. Direct step coordinates
+    -- Store action type (use stepType as fallback for generic steps)
+    self.currentActionType = actionType or stepType
+
+    local targetCoords = nil
+
+    -- Priority 1: Explicit GOTO coordinates from lines (highest priority)
+    -- These are manually specified [G x,y Zone] coordinates and should NEVER be overridden
+    local allCoords = collectAllStepCoordinates(stepData)
+    local hasExplicitGoto = false
+
+    for _, coord in ipairs(allCoords) do
+        if coord.type == "goto" then
+            targetCoords = coord
+            hasExplicitGoto = true
+            break
+        end
+    end
+
+    -- If we have explicit GOTO coords, use them and skip all other coord sources
+    if hasExplicitGoto then
+        local description = self:GetStepDescription(stepData, targetCoords, currentAction)
+        self:AddWaypoint(targetCoords, description)
+        return
+    end
+
+    -- Priority 2: TAR coordinates
+    if not targetCoords then
+        local tarCoords = extractTARCoordinates(stepData)
+        if table.getn(tarCoords) > 0 then
+            targetCoords = tarCoords[1]
+        end
+    end
+
+    -- Priority 3: Quest-specific coordinates for the current action (QT/QA/QC)
+    if not targetCoords and currentQuestId then
+        local questCoords = GLV:GetQuestAllCoords(currentQuestId)
+        if questCoords and table.getn(questCoords) > 0 then
+            targetCoords = self:FindCoordinatesByType(questCoords, stepType)
+        end
+    end
+
+    -- Priority 4: Current action's line coordinates
+    if not targetCoords and currentAction and currentAction.coords and table.getn(currentAction.coords) > 0 then
+        targetCoords = self:FindCoordinatesByType(currentAction.coords, stepType)
+    end
+
+    -- Priority 5: Direct step coordinates
     if not targetCoords and stepData and stepData.coords and table.getn(stepData.coords) > 0 then
         targetCoords = self:FindCoordinatesByType(stepData.coords, stepType)
     end
-    
-    -- 3. Line coordinates
-    if not targetCoords then
-        local allCoords = collectAllStepCoordinates(stepData)
-        if table.getn(allCoords) > 0 then
-            targetCoords = self:FindCoordinatesByType(allCoords, stepType)
-        end
+
+    -- Priority 6: Other line coordinates (non-goto)
+    if not targetCoords and table.getn(allCoords) > 0 then
+        targetCoords = self:FindCoordinatesByType(allCoords, stepType)
     end
-    
-    -- 4. Quest objective coordinates (for COMPLETE steps or fallback)
+
+    -- Priority 7: Quest objective coordinates (for COMPLETE steps or fallback)
     if not targetCoords or stepType == "COMPLETE" then
         local questCoords = findQuestObjectiveCoordinates(stepData, playerPos)
         if questCoords then
             targetCoords = questCoords
         end
     end
-    
+
     -- Set waypoint if coordinates found
     if targetCoords then
-        local description = self:GetStepDescription(stepData, targetCoords)
+        local description = self:GetStepDescription(stepData, targetCoords, currentAction)
         self:AddWaypoint(targetCoords, description)
     end
 end

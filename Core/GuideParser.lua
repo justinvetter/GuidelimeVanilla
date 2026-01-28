@@ -15,7 +15,7 @@ local codes = {
     N   = "NAME",
     NX  = "NEXT_GUIDE",
     D   = "DESCRIPTION",
-    O   = "OPTIONAL",
+    O   = "ONGOING",
     OC  = "OPTIONAL_COMPLETE_WITH_NEXT",
     GA  = "GUIDE_APPLIES",
     Q   = "QUEST",
@@ -172,8 +172,8 @@ function Parser:parseGuide(guide, group)
                             parsedGuide.clickToNext = true
                             return ""
 
-                        elseif tag == "OPTIONAL" then
-                            parsedLine.optional = true
+                        elseif tag == "ONGOING" then
+                            parsedLine.ongoing = true
                             return ""
 
                         elseif tag == "OPTIONAL_COMPLETE_WITH_NEXT" then
@@ -182,6 +182,20 @@ function Parser:parseGuide(guide, group)
                             return ""
 
                         elseif tag == "GOTO" then
+                            -- Parse coordinates from [G x,y Zone Name] format
+                            local x, y, zoneName = string.match(tagContent, "(%d+%.?%d*),(%d+%.?%d*)%s+(.+)")
+                            if x and y and zoneName then
+                                local zoneId = GLV:GetZoneIDByName(zoneName)
+                                if zoneId then
+                                    if not parsedLine.coords then parsedLine.coords = {} end
+                                    table.insert(parsedLine.coords, {
+                                        x = tonumber(x),
+                                        y = tonumber(y),
+                                        z = zoneId,
+                                        type = "goto"
+                                    })
+                                end
+                            end
                             return ""
 
                         elseif tag == "APPLIES" then
@@ -253,7 +267,11 @@ function Parser:parseGuide(guide, group)
                             })
                             
                             if questCoords and table.getn(questCoords) > 0 then
-                                parsedLine.coords = questCoords
+                                -- Append quest coords instead of replacing (preserve explicit [G] coords)
+                                if not parsedLine.coords then parsedLine.coords = {} end
+                                for _, coord in ipairs(questCoords) do
+                                    table.insert(parsedLine.coords, coord)
+                                end
                             end
 
                             fullText = fullText .. "|c" .. GLV.Colors[tag] .. questTitle .. "|r"
