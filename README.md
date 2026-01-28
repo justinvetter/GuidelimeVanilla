@@ -75,7 +75,7 @@ Create a `.lua` file in `Guides/` using this format:
 GLV:RegisterGuide([[
 [N 1-10 My Guide Name]
 [GA Alliance]
-[D Guide description]
+[D Guide description\\Line 2\\Line 3]
 
 [QA123] Accept quest
 [QC123] Complete objectives
@@ -88,6 +88,8 @@ GLV:RegisterGuide([[
 [H Stormwind] Use hearthstone - auto-completes when you arrive at destination
 [LE SP 3279] Learn spell (by spell ID) - auto-completes when spell is learned
 [NX 10-20 Next Guide Name]
+
+Multi-line step text example:\\Take the boat and wait for it to depart.\\Craft bandages or fish while you wait.
 ]], "My Guides")
 ```
 
@@ -95,6 +97,12 @@ Add to `Guides/guides.xml`:
 ```xml
 <Script file="MyGuides\My_Guide.lua"/>
 ```
+
+### Guide Syntax Features
+
+- **Line Breaks**: Use `\\` (double backslash) to create line breaks in step text and descriptions
+  - Example: `[D Guide info\\Website: example.com\\Discord: link]`
+  - Example: `Take the boat to Auberdine\\Craft bandages while you wait`
 
 ## Acknowledgments
 
