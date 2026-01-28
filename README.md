@@ -37,8 +37,9 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Automatic Progress**: Checks off steps when quests are accepted, completed, or turned in
 - **Multi-step Support**: Handles steps with multiple quest actions
 - **Quest State Persistence**: Saves progress between sessions
-- **Flight Path Tracking**: Automatically detects discovered flight paths
+- **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
 - **Quest Abandonment Handling**: Properly updates state when quests are abandoned
+- **XP Progress Bars**: Visual colored progress bars for grind/XP requirement steps showing current progress
 
 ### 🎨 User Interface
 - **Clean Design**: Organized interface with consistent styling
@@ -73,6 +74,8 @@ GLV:RegisterGuide([[
 [QT123] Turn in quest
 [O][QC456] Ongoing step - stays pinned while you continue
 [G 45.5,32 Westfall] Go to specific coordinates
+[P Stormwind] Get flight path
+[F Stormwind] Fly to destination - auto-completes when flight is taken
 [NX 10-20 Next Guide Name]
 ]], "My Guides")
 ```

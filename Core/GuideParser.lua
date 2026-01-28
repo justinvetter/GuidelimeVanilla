@@ -36,6 +36,7 @@ local codes = {
     S   = "BIND_HEARTHSTONE",
     UI  = "USE_ITEM",
     P   = "GET_FLIGHT_PATH",
+    F   = "FLY_TO",
 }
 local reverseCodes = {}
 for k, v in pairs(codes) do reverseCodes[v] = k end
@@ -311,8 +312,18 @@ function Parser:parseGuide(guide, group)
                             parsedLine.hasCheckbox = true
                             parsedLine.icon = "Interface\\Icons\\Ability_Mount_GriffonMount"
                             parsedLine.destination = flightPathName
-                            
+
                             local fullText = "|c" .. GLV.Colors[tag] .. flightPathName .. "|r"
+                            return fullText
+
+                        elseif tag == "FLY_TO" then
+                            local flightPathName = self:GetFlightPathInfo(tagContent)
+                            parsedLine.stepType = "FLY_TO"
+                            parsedLine.hasCheckbox = true
+                            parsedLine.icon = "Interface\\Icons\\Ability_Mount_GriffonMount"
+                            parsedLine.destination = flightPathName
+
+                            local fullText = "Fly to |c" .. GLV.Colors[tag] .. flightPathName .. "|r"
                             return fullText
 
                         end

@@ -197,6 +197,32 @@ function CharacterTracker:CheckForXPChanges()
     end
 end
 
+-- Create a colored progress bar string
+-- current: current value, target: target value, barLength: number of characters (default 10)
+local function CreateProgressBar(current, target, barLength)
+    barLength = barLength or 10
+    local percent = math.min(current / target, 1)
+    local filled = math.floor(percent * barLength)
+    local empty = barLength - filled
+
+    -- Build the bar with colors
+    local filledColor = "|cFF00FF00"  -- Green for filled
+    local emptyColor = "|cFF666666"   -- Gray for empty
+    local resetColor = "|r"
+
+    local filledStr = ""
+    local emptyStr = ""
+
+    for i = 1, filled do
+        filledStr = filledStr .. "="
+    end
+    for i = 1, empty do
+        emptyStr = emptyStr .. "-"
+    end
+
+    return "[" .. filledColor .. filledStr .. resetColor .. emptyColor .. emptyStr .. resetColor .. "]"
+end
+
 -- Get XP progress text for display (e.g., "(1250/1500)" or "(Level 3, 50%)")
 function CharacterTracker:GetXPProgress(experienceRequirement)
     if not experienceRequirement then return nil end
@@ -225,7 +251,10 @@ function CharacterTracker:GetXPProgress(experienceRequirement)
             else
                 -- How much XP to grind to reach the target state
                 local xpToGrind = xpNeeded - req.xpMinus
-                return "(" .. xpToGrind .. " XP)", false
+                local xpGrinded = (playerMaxXP - req.xpMinus) - (playerMaxXP - playerXP - req.xpMinus)
+                local xpTarget = playerMaxXP - req.xpMinus
+                local bar = CreateProgressBar(playerXP, xpTarget)
+                return bar .. " (" .. xpToGrind .. " XP)", false
             end
         else
             -- Not at target level - 1 yet, show level needed
@@ -240,11 +269,12 @@ function CharacterTracker:GetXPProgress(experienceRequirement)
             if playerXP >= req.xpPlus then
                 return "(Done)", true
             else
-                local xpToGrind = req.xpPlus - playerXP
-                return "(" .. xpToGrind .. " XP)", false
+                local bar = CreateProgressBar(playerXP, req.xpPlus)
+                return bar .. " (" .. playerXP .. "/" .. req.xpPlus .. " XP)", false
             end
         else
-            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false
+            -- Below target level: show level progress + XP goal
+            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. " + " .. req.xpPlus .. " XP)", false
         end
 
     elseif req.type == "level_percent" then
@@ -256,8 +286,8 @@ function CharacterTracker:GetXPProgress(experienceRequirement)
             if playerXP >= targetXP then
                 return "(Done)", true
             else
-                local xpToGrind = targetXP - playerXP
-                return "(" .. xpToGrind .. " XP)", false
+                local bar = CreateProgressBar(playerXP, targetXP)
+                return bar .. " (" .. playerXP .. "/" .. targetXP .. " XP)", false
             end
         else
             return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false

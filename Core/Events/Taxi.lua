@@ -17,17 +17,54 @@ GLV.TaxiTracker = TaxiTracker
 function TaxiTracker:Init()
     self.knownTaxiNodes = {}
     self.pendingCheck = false
-    
+    self.pendingFlyTo = nil  -- Track pending fly destination
+
     if GLV.Ace then
         GLV.Ace:RegisterEvent("TAXIMAP_OPENED", function() self:OnTaxiMapOpened() end)
+        GLV.Ace:RegisterEvent("TAXIMAP_CLOSED", function() self:OnTaxiMapClosed() end)
     end
+
+    -- Hook TakeTaxiNode to capture flight destination
+    self:HookTakeTaxiNode()
 
     local knownTaxiNodes = GLV.Settings:GetOption({"TaxiTracker", "KnownTaxiNodes"}) or {}
     self.knownTaxiNodes = knownTaxiNodes
-    
+
     -- Debug: display known flight paths on load
     if GLV.Debug then
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Loaded " .. self:CountKnownNodes() .. " known taxi nodes")
+    end
+end
+
+-- Hook TakeTaxiNode to detect when player takes a flight
+function TaxiTracker:HookTakeTaxiNode()
+    if self.hookedTakeTaxiNode then return end
+
+    local originalTakeTaxiNode = TakeTaxiNode
+    TakeTaxiNode = function(nodeIndex)
+        -- Get destination name before taking the taxi
+        local destName = TaxiNodeName(nodeIndex)
+        if destName then
+            self.pendingFlyTo = destName
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Taking flight to: " .. destName)
+            end
+        end
+        -- Call original function
+        return originalTakeTaxiNode(nodeIndex)
+    end
+
+    self.hookedTakeTaxiNode = true
+end
+
+function TaxiTracker:OnTaxiMapClosed()
+    -- If we have a pending fly destination, complete matching FLY_TO steps
+    if self.pendingFlyTo then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Taxi map closed, checking FLY_TO steps for: " .. self.pendingFlyTo)
+        end
+        self:CheckAndCompleteFlyToSteps(self.pendingFlyTo)
+        self.pendingFlyTo = nil
     end
 end
 
@@ -87,73 +124,107 @@ function TaxiTracker:OnFlightPathDiscovered(flightPathName, nodeIndex)
     self:CheckAndCompleteGuideSteps(flightPathName)
 end
 
-function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
+-- Check and complete FLY_TO steps when player takes a flight
+function TaxiTracker:CheckAndCompleteFlyToSteps(destinationName)
     if not GLV.CurrentGuide or not GLV.CurrentDisplaySteps then
-        GLV.Ace:Print("TaxiTracker", "No current guide or display steps available")
         return
     end
-    
+
     local guide = GLV.CurrentGuide
     local currentGuideId = guide.id or "Unknown"
     local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
     local hasCompletedStep = false
-    
+
     if GLV.Debug then
-        GLV.Ace:Print("TaxiTracker", "Checking guide steps for flight path: " .. flightPathName)
+        GLV.Ace:Print("TaxiTracker", "Checking FLY_TO steps for destination: " .. destinationName)
     end
 
     -- Iterate through all steps in the current guide
     for displayIndex, stepData in ipairs(GLV.CurrentDisplaySteps) do
         if stepData.hasCheckbox and stepData.lines then
             for _, line in ipairs(stepData.lines) do
-                -- Look for steps that mention this flight path
-                if line.text and line.stepType == "GET_FP" then
-                    -- Extract the flight path name from the step
-                    local stepFlightPath = line.destination
-                    
-                    if stepFlightPath and self:IsFlightPathMatch(stepFlightPath, flightPathName) then
-                        if GLV.Debug then
-                            GLV.Ace:Print("TaxiTracker", "Found matching step for flight path: " .. stepFlightPath .. " -> " .. flightPathName)
-                        end
-
-                        -- Get the original index for this step
+                if line.stepType == "FLY_TO" and line.destination then
+                    if self:IsFlightPathMatch(line.destination, destinationName) then
                         local originalIndex = GLV.CurrentDisplayToOriginal[displayIndex]
-                        
+
                         if originalIndex and not stepState[originalIndex] then
-                            -- Mark step as completed
                             stepState[originalIndex] = true
                             GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
 
-                            -- Update checkbox visually
-                            local scrollChild = _G["GLV_MainScrollFrameScrollChild"]
-                            if scrollChild then
-                                local stepFrameName = scrollChild:GetName().."Step"..currentGuideId.."_"..displayIndex
-                                local stepFrame = getglobal(stepFrameName)
-                                if stepFrame then
-                                    local checkbox = getglobal(stepFrameName .. "Check")
-                                    if checkbox then
-                                        checkbox:SetChecked(true)
-                                        if GLV.Debug then
-                                            GLV.Ace:Print("TaxiTracker", "Auto-checked step " .. displayIndex .. " for flight path: " .. flightPathName)
-                                        end
-                                    end
-                                end
+                            -- Deactivate ongoing step if it was active
+                            if GLV.OngoingStepsManager and GLV.OngoingStepsManager:IsActive(displayIndex) then
+                                GLV.OngoingStepsManager:Deactivate(displayIndex)
                             end
 
                             hasCompletedStep = true
 
-                            -- Chat message
-                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed step: Flight path " .. flightPathName)
+                            if GLV.Debug then
+                                GLV.Ace:Print("TaxiTracker", "Auto-completed FLY_TO step " .. displayIndex .. " for: " .. destinationName)
+                            end
+
+                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed: Fly to " .. destinationName)
                         end
                     end
                 end
             end
         end
     end
-    
-    -- If a step was completed, update the active step
+
     if hasCompletedStep then
         self:UpdateActiveStep()
+        GLV:RefreshGuide()
+    end
+end
+
+-- Check and complete GET_FP steps when a new flight path is discovered
+function TaxiTracker:CheckAndCompleteGuideSteps(flightPathName)
+    if not GLV.CurrentGuide or not GLV.CurrentDisplaySteps then
+        return
+    end
+
+    local guide = GLV.CurrentGuide
+    local currentGuideId = guide.id or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide","Guides", currentGuideId, "StepState"}) or {}
+    local hasCompletedStep = false
+
+    if GLV.Debug then
+        GLV.Ace:Print("TaxiTracker", "Checking GET_FP steps for: " .. flightPathName)
+    end
+
+    -- Iterate through all steps in the current guide
+    for displayIndex, stepData in ipairs(GLV.CurrentDisplaySteps) do
+        if stepData.hasCheckbox and stepData.lines then
+            for _, line in ipairs(stepData.lines) do
+                if line.stepType == "GET_FP" and line.destination then
+                    if self:IsFlightPathMatch(line.destination, flightPathName) then
+                        local originalIndex = GLV.CurrentDisplayToOriginal[displayIndex]
+
+                        if originalIndex and not stepState[originalIndex] then
+                            stepState[originalIndex] = true
+                            GLV.Settings:SetOption(stepState, {"Guide","Guides", currentGuideId, "StepState"})
+
+                            -- Deactivate ongoing step if it was active
+                            if GLV.OngoingStepsManager and GLV.OngoingStepsManager:IsActive(displayIndex) then
+                                GLV.OngoingStepsManager:Deactivate(displayIndex)
+                            end
+
+                            hasCompletedStep = true
+
+                            if GLV.Debug then
+                                GLV.Ace:Print("TaxiTracker", "Auto-completed GET_FP step " .. displayIndex .. " for: " .. flightPathName)
+                            end
+
+                            GLV.Ace:Print("|cFF00FF00[GuideLime]|r Auto-completed: Get flight path " .. flightPathName)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if hasCompletedStep then
+        self:UpdateActiveStep()
+        GLV:RefreshGuide()
     end
 end
 
