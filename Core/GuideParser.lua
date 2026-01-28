@@ -203,6 +203,9 @@ function Parser:parseGuide(guide, group)
                             return "|c" .. GLV.Colors[tag] .. self:replaceClassRace(tagContent) .. "|r"
 
                         elseif tag == "TARGET_ID" then
+                            -- Store target ID for navigation
+                            if not parsedLine.targetIds then parsedLine.targetIds = {} end
+                            table.insert(parsedLine.targetIds, tonumber(tagContent))
                             return GLV:getTargetName(tagContent)
 
                         elseif tag == "LEARN" then

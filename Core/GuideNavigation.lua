@@ -203,7 +203,7 @@ function GuideNavigation:SetWaypoint(coords, description)
     if not coords or not coords.x or not coords.y then
         return false
     end
-    
+
     local zoneName = GLV:GetZoneNameByID(coords.z)
     local cont, zone = self:GetZoneInfo(zoneName)
 
@@ -211,16 +211,23 @@ function GuideNavigation:SetWaypoint(coords, description)
         c = cont,
         x = coords.x / 100,
         y = coords.y / 100,
-        z = zone or GLV:GetCurrentZoneID(),
+        z = zone,  -- May be nil if GetZoneInfo failed
+        zoneName = zoneName,  -- Store zone name for later lookup
+        zoneId = coords.z,  -- Store database zone ID
         description = description or "Guide Objective"
     }
-    
+
     return true
 end
 
 -- Clears the current waypoint
 function GuideNavigation:ClearWaypoint()
     currentWaypoint = nil
+end
+
+-- Returns the current waypoint (for debugging)
+function GuideNavigation:GetCurrentWaypoint()
+    return currentWaypoint
 end
 
 -- Adds a waypoint (replaces TomTom function)
@@ -294,13 +301,24 @@ function GuideNavigation:UpdateNavigation()
         return
     end
     
-    if playerPos.z ~= currentWaypoint.z then
-        navigationFrame.questName:SetText("")
-        navigationFrame.objective:SetText("Different Zone")
-        navigationFrame.distance:SetText("")
-        navigationFrame.distance:SetTextColor(1, 0.5, 0.5)
-        navigationFrame.arrow:SetAlpha(0.3)
+    -- If zone wasn't resolved earlier, try again now
+    if not currentWaypoint.z and currentWaypoint.zoneName then
+        local cont, zone = self:GetZoneInfo(currentWaypoint.zoneName)
+        if zone then
+            currentWaypoint.c = cont
+            currentWaypoint.z = zone
+        end
+    end
+
+    if not currentWaypoint.z or playerPos.z ~= currentWaypoint.z then
+        -- Hide navigation when in different zone
+        navigationFrame:Hide()
         return
+    end
+
+    -- Show navigation when in correct zone
+    if not navigationFrame:IsVisible() then
+        navigationFrame:Show()
     end
     
     if currentWaypoint.description then
@@ -421,23 +439,25 @@ local function extractTARCoordinates(stepData)
     if not stepData or not stepData.lines then
         return tarCoords
     end
-    
+
     for _, line in ipairs(stepData.lines) do
-        local lineText = line.text or ""
-        for targetId in string.gmatch(lineText, "%[TAR(%d+)%]") do
-            local npcCoords = GLV:GetNPCCoordinates(targetId)
-            if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
-                table.insert(tarCoords, {
-                    x = npcCoords.x, 
-                    y = npcCoords.y, 
-                    z = npcCoords.z, 
-                    type = "target", 
-                    npcId = tonumber(targetId)
-                })
+        -- Use stored targetIds from parser
+        if line.targetIds then
+            for _, targetId in ipairs(line.targetIds) do
+                local npcCoords = GLV:GetNPCCoordinates(targetId)
+                if npcCoords and npcCoords.x and npcCoords.y and npcCoords.z then
+                    table.insert(tarCoords, {
+                        x = npcCoords.x,
+                        y = npcCoords.y,
+                        z = npcCoords.z,
+                        type = "target",
+                        npcId = targetId
+                    })
+                end
             end
         end
     end
-    
+
     return tarCoords
 end
 

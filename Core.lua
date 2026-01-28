@@ -76,6 +76,7 @@ function addon:OnEnable()
     -- Register events for proper timing
     self:RegisterEvent("VARIABLES_LOADED", function() self:OnVariablesLoaded() end)
     self:RegisterEvent("PLAYER_LOGIN", function() self:OnPlayerLogin() end)
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", function() self:OnZoneChanged() end)
     
     -- Add Events Loading
     GLV.QuestTracker:Init()
@@ -145,6 +146,33 @@ function addon:OnAddonLoaded(addonName)
                 end
             end
         end
+    end
+end
+
+-- Event handler for ZONE_CHANGED_NEW_AREA
+function addon:OnZoneChanged()
+    -- Delay the waypoint refresh to let Astrolabe update its position
+    self:ScheduleEvent(function()
+        -- Force map to update to current zone before getting position
+        if not WorldMapFrame:IsVisible() then
+            SetMapToCurrentZone()
+        end
+        self:RefreshNavigationForCurrentStep()
+    end, 0.5)
+end
+
+-- Refresh navigation waypoint for current step (called after zone change with delay)
+function addon:RefreshNavigationForCurrentStep()
+    if not GLV.GuideNavigation or not GLV.CurrentDisplaySteps then
+        return
+    end
+
+    local currentGuideId = Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentStep = Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    if currentStep > 0 and GLV.CurrentDisplaySteps[currentStep] then
+        local stepData = GLV.CurrentDisplaySteps[currentStep]
+        GLV.GuideNavigation:UpdateWaypointForStep(stepData)
     end
 end
 
