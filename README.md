@@ -41,6 +41,7 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Quest State Persistence**: Saves progress between sessions
 - **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
 - **Hearthstone Tracking**: Automatically completes hearthstone steps when you arrive at your destination
+- **Spell Learning Tracking**: Automatically completes learn spell steps when you train skills or spells (uses Nampower API for profession tier verification)
 - **Quest Abandonment Handling**: Properly updates state when quests are abandoned
 - **XP Progress Bars**: Visual colored progress bars for grind/XP requirement steps showing current progress
 
@@ -81,6 +82,7 @@ GLV:RegisterGuide([[
 [P Stormwind] Get flight path
 [F Stormwind] Fly to destination - auto-completes when flight is taken
 [H Stormwind] Use hearthstone - auto-completes when you arrive at destination
+[LE SP 3279] Learn spell (by spell ID) - auto-completes when spell is learned
 [NX 10-20 Next Guide Name]
 ]], "My Guides")
 ```
