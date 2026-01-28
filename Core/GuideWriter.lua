@@ -226,6 +226,8 @@ local function wrapText(inputText, maxWidth, font)
     local lineCount = 0
     local segments = {}
     inputText = inputText or ""
+    -- Convert \\ to newline
+    inputText = string.gsub(inputText, "\\\\", "\n")
     for segment in string.gfind(inputText, "([^\n]*)\n?") do
         if segment and segment ~= "" then table.insert(segments, segment) end
     end

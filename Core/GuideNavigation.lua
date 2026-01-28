@@ -606,7 +606,7 @@ end
 
 -- Generates step description based on step data and target coordinates
 function GuideNavigation:GetStepDescription(stepData, targetCoords, currentAction)
-    local description = "Guide Step"
+    local description = "Follow the guide"
 
     -- Use currentAction's questId if available, otherwise find from step data
     local questId = nil

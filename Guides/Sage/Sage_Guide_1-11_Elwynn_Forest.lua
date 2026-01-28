@@ -264,7 +264,7 @@ Get the [P Sentinel Hill] flightpoint
 [XP10 Grind nearby until Level 10]
 
 [OC]|cFFffffffLevel 10|r
-[OC]|cFFfff8a3Fly from Sentinel Hill to [F Stormwind], eta 01:26|r
+|cFFfff8a3Fly from Sentinel Hill to [F Stormwind], eta 01:26|r
 In the Trade District at [TAR279], [QT61]
 [A Hunter] At [TAR5515], learn [LE SP 13165], [LE SP 13549], [LE SP 1494]
 [A Mage] At [TAR5497], learn [LE SP 7300], [LE SP 122], [LE SP 5504], [LE SP 5505]
@@ -289,7 +289,7 @@ At [TAR12997], [QT6661]
 
 [OC]In Ironforge
 At the Great Forge at flightmaster [TAR1573], Get the [P Ironforge] flightpoint
-[A Paladin] In Ironforge at the Military Ward at [TAR11865], learn [LE SP 15987] [LE SP 15985] 10|cFFD0D2D7s|r
+[A Paladin] In Ironforge at the Military Ward at [TAR11865], learn [LE SP 15985] 10|cFFD0D2D7s|r
 [A Rogue] In Ironforge at the Military Ward at [TAR11865], learn [LE SP 15986] 10|cFFD0D2D7s|r
 [A Warrior] In Ironforge at the Military Ward at [TAR11865], learn [LE SP 15987] [LE SP 15985] 10|cFFD0D2D7s|r
 
