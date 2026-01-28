@@ -199,9 +199,8 @@ function GLV:UpdateXPProgressDisplay()
             if isActiveStep or isOngoingStep then
                 local progress, isDone = GLV.CharacterTracker:GetXPProgress(tracker.experienceRequirement)
                 if progress then
-                    local color = isDone and "|cFF00FF00" or "|cFFFFFF00"  -- Green if done, yellow otherwise
-                    -- Put progress on a new line to avoid truncation
-                    local newText = tracker.originalText .. "\n  " .. color .. progress .. "|r"
+                    -- Put progress on a new line with empty line before
+                    local newText = tracker.originalText .. "\n\n" .. progress
                     tracker.fontString:SetText(newText)
                 else
                     tracker.fontString:SetText(tracker.originalText)
@@ -732,6 +731,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                             textFrame:SetJustifyV("TOP")
                             textFrame:SetWidth(availableWidth)
                             local usedHeight = (lineCount * CONFIG.fontLineHeight)
+
+                            -- Reserve extra height for XP progress (empty line + progress bar)
+                            if line.experienceRequirement then
+                                usedHeight = usedHeight + (CONFIG.fontLineHeight * 2)
+                            end
+
                             textFrame:SetHeight(usedHeight)
 
                             -- Track [XP] steps for progress display in pinned section
@@ -907,9 +912,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             textFrame:SetWidth(availableWidth)
             local usedHeight = (lineCount * CONFIG.fontLineHeight)
 
-            -- Reserve extra height for XP progress text line
+            -- Reserve extra height for XP progress (empty line + progress bar)
             if line.experienceRequirement then
-                usedHeight = usedHeight + CONFIG.fontLineHeight
+                usedHeight = usedHeight + (CONFIG.fontLineHeight * 2)
             end
 
             textFrame:SetHeight(usedHeight)
