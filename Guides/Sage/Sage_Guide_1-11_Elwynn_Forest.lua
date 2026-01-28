@@ -232,10 +232,10 @@ At [TAR253], [QT112], wait, [QA114]
 [A Warrior]  Buy up to 10 [CI414,10] 1|cFFD0D2D7s|r25|cFFC07A50c|r
 |cFFa335eeFirst Aid:|r Upstairs at [TAR2329], learn [LE SP 3279]
 [OC]At [TAR240]
-[QT39]
-[QT76]
+[OC][QT39]
+[OC][QT76]
 [QA239]
-[QA109]
+
 At [TAR514], [QA1097]
 [OC]At [TAR54], [R][V]
 [A Mage] Learn [LE SP 205], [LE SP 118]
@@ -257,7 +257,6 @@ At [TAR238], [QA36]
 Inside the house at [TAR235], [QT36], skip follow up
 
 [OC]Take the east road to Sentinel Hill
-At [TAR234], [QT109], skip follow up
 At [TAR491], [QA6181]
 At [TAR8931],  Buy up to 40 [CI4592,40] 20|cFFC07A50c|r (84% savings)
 At flightmaster [TAR523], [QT6181] [QA6281]

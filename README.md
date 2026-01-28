@@ -8,6 +8,10 @@
 
 A World of Warcraft Classic (1.12) addon providing an enhanced guide system with automatic quest tracking and autonomous navigation. **Includes Sage 1-60 Alliance leveling guides!**
 
+## Requirements
+
+- **[Nampower](https://github.com/pepopo978/nampower)** - Required for spell learning detection and other advanced features
+
 ## Screenshots
 
 ![Full Screen](images/screen1.png) ![Guide](images/screen2.png)
