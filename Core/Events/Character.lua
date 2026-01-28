@@ -240,11 +240,11 @@ function CharacterTracker:GetXPProgress(experienceRequirement)
             if playerXP >= req.xpPlus then
                 return "(Done)", true
             else
-                local xpToGrind = req.xpPlus - playerXP
-                return "(" .. xpToGrind .. " XP)", false
+                return "(" .. playerXP .. "/" .. req.xpPlus .. " XP)", false
             end
         else
-            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. ")", false
+            -- Below target level: show level progress + XP goal
+            return "(Lvl " .. playerLevel .. "/" .. req.targetLevel .. " + " .. req.xpPlus .. " XP)", false
         end
 
     elseif req.type == "level_percent" then

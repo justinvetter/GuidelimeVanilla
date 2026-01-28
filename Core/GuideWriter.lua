@@ -182,7 +182,7 @@ function GLV:UpdateOngoingObjectivesDisplay()
     end
 end
 
--- Update XP progress display on tracked FontStrings (only on active step)
+-- Update XP progress display on tracked FontStrings (active step and ongoing steps)
 function GLV:UpdateXPProgressDisplay()
     if not GLV.CharacterTracker or not GLV.XPProgressTrackers then return end
 
@@ -192,17 +192,22 @@ function GLV:UpdateXPProgressDisplay()
 
     for _, tracker in ipairs(GLV.XPProgressTrackers) do
         if tracker.fontString and tracker.experienceRequirement and tracker.originalText then
-            -- Only show progress on the active step
-            if tracker.stepIndex == activeStep then
+            -- Show progress on active step OR ongoing steps
+            local isActiveStep = tracker.stepIndex == activeStep
+            local isOngoingStep = OngoingStepsManager and OngoingStepsManager:IsActive(tracker.stepIndex)
+
+            if isActiveStep or isOngoingStep then
                 local progress, isDone = GLV.CharacterTracker:GetXPProgress(tracker.experienceRequirement)
                 if progress then
                     local color = isDone and "|cFF00FF00" or "|cFFFFFF00"  -- Green if done, yellow otherwise
-                    tracker.fontString:SetText(tracker.originalText .. " " .. color .. progress .. "|r")
+                    -- Put progress on a new line to avoid truncation
+                    local newText = tracker.originalText .. "\n  " .. color .. progress .. "|r"
+                    tracker.fontString:SetText(newText)
                 else
                     tracker.fontString:SetText(tracker.originalText)
                 end
             else
-                -- Not active step, show original text without progress
+                -- Not active or ongoing step, show original text without progress
                 tracker.fontString:SetText(tracker.originalText)
             end
         end
@@ -729,6 +734,16 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                             local usedHeight = (lineCount * CONFIG.fontLineHeight)
                             textFrame:SetHeight(usedHeight)
 
+                            -- Track [XP] steps for progress display in pinned section
+                            if line.experienceRequirement then
+                                table.insert(GLV.XPProgressTrackers, {
+                                    fontString = textFrame,
+                                    experienceRequirement = line.experienceRequirement,
+                                    originalText = wrappedText,
+                                    stepIndex = ongoingIdx
+                                })
+                            end
+
                             local offsetX = reservedIconWidth
 
                             if hasIcon then
@@ -891,6 +906,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             textFrame:SetJustifyV("TOP")
             textFrame:SetWidth(availableWidth)
             local usedHeight = (lineCount * CONFIG.fontLineHeight)
+
+            -- Reserve extra height for XP progress text line
+            if line.experienceRequirement then
+                usedHeight = usedHeight + CONFIG.fontLineHeight
+            end
+
             textFrame:SetHeight(usedHeight)
 
             -- Track [XP] steps for progress display (only show on active step)
