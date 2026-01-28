@@ -16,6 +16,7 @@ GLV.GossipTracker = GossipTracker
 function GossipTracker:Init()
     if GLV.Ace then
         GLV.Ace:RegisterEvent("GOSSIP_SHOW", function() self:OnGossipShow() end)
+        GLV.Ace:RegisterEvent("SPELLCAST_STOP", function() self:OnSpellcastStop() end)
         -- Hook ConfirmBinder to detect when hearthstone is bound
         GLV.Ace:Hook("ConfirmBinder", function()
             GLV.Ace.hooks["ConfirmBinder"]()
@@ -30,6 +31,92 @@ function GossipTracker:Init()
     GLV.Ace:ScheduleEvent("GLV_InitHearthCheck", function()
         self:CheckHearthstoneBind()
     end, 3)
+
+    self.hearthstoneCasting = false
+end
+
+-- Track when hearthstone cast starts
+function GossipTracker:OnSpellcastStop()
+    -- Check hearthstone arrival after a short delay to let teleport complete
+    GLV.Ace:ScheduleEvent("GLV_CheckHearthArrival", function()
+        self:CheckHearthstoneArrival()
+    end, 1.0)
+end
+
+-- Check if player arrived at hearthstone destination
+function GossipTracker:CheckHearthstoneArrival()
+    if not GLV.CurrentDisplaySteps then return end
+
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
+    local bindLocation = GetBindLocation() or ""
+
+    local hasCompleted = false
+
+    for displayIndex, stepData in ipairs(GLV.CurrentDisplaySteps) do
+        if stepData.hasCheckbox and stepData.lines then
+            for _, line in ipairs(stepData.lines) do
+                if line.stepType == "HEARTHSTONE" and line.hearthDestination then
+                    local dest = string.lower(line.hearthDestination)
+                    local bind = string.lower(bindLocation)
+
+                    -- Check if destination matches bind location (where hearthstone takes you)
+                    if string.find(bind, dest) or string.find(dest, bind) then
+                        local originalIndex = GLV.CurrentDisplayToOriginal[displayIndex]
+                        if originalIndex and not stepState[originalIndex] then
+                            stepState[originalIndex] = true
+                            GLV.Settings:SetOption(stepState, {"Guide", "Guides", currentGuideId, "StepState"})
+                            hasCompleted = true
+
+                            if GLV.Debug then
+                                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[GuideLime]|r Hearthstone arrived at " .. line.hearthDestination)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if hasCompleted then
+        self:UpdateActiveStep()
+        GLV:RefreshGuide()
+    end
+end
+
+-- Update active step to next uncompleted step
+function GossipTracker:UpdateActiveStep()
+    if not GLV.CurrentGuide or not GLV.CurrentDisplaySteps then return end
+
+    local guide = GLV.CurrentGuide
+    local currentGuideId = guide.id or "Unknown"
+    local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
+    local currentActiveStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    -- Find the next uncompleted step
+    local newActiveStep = currentActiveStep
+    local totalSteps = table.getn(GLV.CurrentDisplaySteps)
+
+    for i = 1, totalSteps do
+        if GLV.CurrentDisplaySteps[i] and GLV.CurrentDisplaySteps[i].hasCheckbox then
+            local originalIndex = GLV.CurrentDisplayToOriginal[i]
+            if originalIndex and not stepState[originalIndex] then
+                newActiveStep = i
+                break
+            end
+        end
+    end
+
+    -- Update active step if changed
+    if newActiveStep ~= currentActiveStep then
+        GLV.Settings:SetOption(newActiveStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
+        GLV_MainLoadedGuideCounter:SetText("(" .. tostring(newActiveStep) .. "/" .. tostring(totalSteps) .. ")")
+
+        -- Update navigation
+        if GLV.GuideNavigation and GLV.CurrentDisplaySteps[newActiveStep] then
+            GLV.GuideNavigation:UpdateWaypointForStep(GLV.CurrentDisplaySteps[newActiveStep])
+        end
+    end
 end
 
 

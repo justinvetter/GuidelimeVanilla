@@ -158,6 +158,10 @@ function addon:OnZoneChanged()
             SetMapToCurrentZone()
         end
         self:RefreshNavigationForCurrentStep()
+        -- Also check hearthstone arrival on zone change (in case player hearthed to different zone)
+        if GLV.GossipTracker then
+            GLV.GossipTracker:CheckHearthstoneArrival()
+        end
     end, 0.5)
 end
 

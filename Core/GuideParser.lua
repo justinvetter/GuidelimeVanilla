@@ -291,6 +291,9 @@ function Parser:parseGuide(guide, group)
                         elseif tag == "HEARTHSTONE" then
                             parsedLine.icon = "Interface\\Icons\\INV_Misc_Rune_01"
                             parsedLine.useItemId = 6948
+                            parsedLine.stepType = "HEARTHSTONE"
+                            parsedLine.hearthDestination = tagContent
+                            parsedLine.hasCheckbox = true
                             return tagContent
 
                         elseif tag == "BIND_HEARTHSTONE" then
