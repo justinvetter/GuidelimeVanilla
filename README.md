@@ -42,6 +42,10 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Automatic Progress**: Checks off steps when quests are accepted, completed, or turned in
 - **Multi-step Support**: Handles steps with multiple quest actions
 - **Quest State Persistence**: Saves progress between sessions
+- **Automation Settings**: Optional automation features available in Settings > Guides:
+  - **Auto Accept Quests**: Automatically accepts quests matching [QA] tags in the current step
+  - **Auto Turnin Quests**: Automatically turns in quests matching [QT] tags (skips if reward choice required)
+  - **Auto Take Flights**: Automatically takes flights when the current step is [F]
 - **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
 - **Hearthstone Tracking**: Automatically completes hearthstone steps when you arrive at your destination
 - **Spell Learning Tracking**: Automatically completes learn spell steps when you train skills or spells (uses Nampower API for profession tier verification)
