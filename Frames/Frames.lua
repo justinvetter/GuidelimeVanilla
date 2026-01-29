@@ -12,6 +12,27 @@ the one linked to this "button".
 ]]--
 local GLV = LibStub("GuidelimeVanilla")
 
+-- Track if display settings have changed (requires reload)
+local displaySettingsChanged = false
+
+-- Mark display settings as changed
+function GLV_MarkDisplaySettingsChanged()
+    displaySettingsChanged = true
+end
+
+-- Check if display settings changed and prompt for reload
+function GLV_CheckReloadOnClose()
+    if displaySettingsChanged then
+        displaySettingsChanged = false
+        ReloadUI()
+    end
+end
+
+-- Reset the changed flag (called when settings open)
+function GLV_ResetDisplaySettingsChanged()
+    displaySettingsChanged = false
+end
+
 
 -- Toggle settings frame visibility
 function GLV_ToggleSettings()
@@ -153,6 +174,8 @@ function GLV_OnGuideScaleSliderChanged(slider, settingKeys)
     value = math.floor(value * 10 + 0.5) / 10
     getglobal(slider:GetName().."Text"):SetText(string.format("%.1f", value))
     GLV.Settings:SetOption(value, settingKeys)
+    -- Mark as changed for reload on close
+    GLV_MarkDisplaySettingsChanged()
     -- Refresh guide to apply new scale
     if GLV.RefreshGuide then
         GLV:RefreshGuide()
@@ -166,6 +189,8 @@ function GLV_OnNavScaleSliderChanged(slider, settingKeys)
     value = math.floor(value * 10 + 0.5) / 10
     getglobal(slider:GetName().."Text"):SetText(string.format("%.1f", value))
     GLV.Settings:SetOption(value, settingKeys)
+    -- Mark as changed for reload on close
+    GLV_MarkDisplaySettingsChanged()
     -- Apply scale to navigation frame
     if GLV.GuideNavigation and GLV.GuideNavigation.ApplyScale then
         GLV.GuideNavigation:ApplyScale(value)

@@ -26,6 +26,12 @@
             <OnLoad>
                 this:RegisterForDrag("LeftButton");
             </OnLoad>
+            <OnShow>
+                GLV_ResetDisplaySettingsChanged();
+            </OnShow>
+            <OnHide>
+                GLV_CheckReloadOnClose();
+            </OnHide>
             <OnDragStart>
                 this:StartMoving();
             </OnDragStart>

@@ -55,6 +55,10 @@ GLV.Settings:SetOption(value, {"Guide", "CurrentGuide"})
 - `{"Automation", "AutoTurninQuests"}` - Auto-turnin quests when current step has `[QT]` tag (skips if reward choice required)
 - `{"Automation", "AutoTakeFlight"}` - Auto-take flight when current step has `[F]` tag
 
+**Display Settings** (Settings > Display):
+- `{"UI", "GuideTextScale"}` - Scale multiplier for guide step text (0.8-1.5, default 1.0)
+- `{"UI", "NavigationScale"}` - Scale multiplier for navigation arrow frame (0.8-1.5, default 1.0)
+
 ### Database (VGDB)
 
 Quest/NPC/Item data from ShaguDB stored in `db/` folder:
@@ -77,6 +81,7 @@ Key methods:
 - `GuideNavigation:HideNextGuide()` - Return to arrow mode
 - `GuideNavigation:ShowEquipItem(itemId)` - Display equip item icon
 - `GuideNavigation:HideEquipItem()` - Return to arrow mode
+- `GuideNavigation:ApplyScale(scale)` - Apply scale multiplier to navigation frame (from settings or manual value)
 
 ## Guide Syntax
 
@@ -102,8 +107,8 @@ Guides use tagged format parsed by `GuideParser.lua`:
 - `Core.lua` - Addon initialization, character loading, quest sync
 - `Core/GuideParser.lua` - Tag parsing, step extraction
 - `Core/GuideLibrary.lua` - Guide registration, dropdown, loading
-- `Core/GuideWriter.lua` - UI creation, checkbox handling, highlighting
-- `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe, next guide button for guide transitions
+- `Core/GuideWriter.lua` - UI creation, checkbox handling, highlighting, text scaling
+- `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe, next guide button for guide transitions, frame scaling
 - `Core/Events/Quests.lua` - Quest hooks, state tracking, automation (auto-accept/turnin)
 - `Core/Events/Taxi.lua` - Flight path tracking and automation (auto-take flights)
 - `Helpers/DBTools.lua` - Database query functions (quest/NPC/item/object lookups)
