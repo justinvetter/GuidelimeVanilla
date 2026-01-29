@@ -20,6 +20,8 @@ local defaults = {
             Opacity = 1,
             Scale = 1,
             Layer = "HIGH",
+            GuideTextScale = 1,
+            NavigationScale = 1,
         },
         CharInfo = {
             Realm = "Unknown",

@@ -35,6 +35,31 @@ local CONFIG = {
     titleFrame = GLV_MainLoadedGuideTitle
 }
 
+-- Get the guide text scale from settings
+local function getGuideTextScale()
+    if GLV.Settings and GLV.Settings.GetOption then
+        return GLV.Settings:GetOption({"UI", "GuideTextScale"}) or 1
+    end
+    return 1
+end
+
+-- Get scaled font line height
+local function getScaledFontLineHeight()
+    return CONFIG.fontLineHeight * getGuideTextScale()
+end
+
+-- Apply scale to a FontString by setting custom font size
+local function applyTextScale(fontString)
+    local scale = getGuideTextScale()
+    if scale ~= 1 then
+        -- Get current font info and apply scaled size
+        local fontFile, fontSize, fontFlags = fontString:GetFont()
+        if fontFile and fontSize then
+            fontString:SetFont(fontFile, fontSize * scale, fontFlags or "")
+        end
+    end
+end
+
 -- Reusable FontString for text measurement (prevents memory leak)
 local measureFontString = nil
 
@@ -221,11 +246,16 @@ local function createTitle(guide)
 end
 
 -- Wrap text to fit within specified width and return wrapped text with line count and height
-local function wrapText(inputText, maxWidth, font)
+local function wrapText(inputText, maxWidth, font, textScale)
     local wrappedText = ""
     local lineCount = 0
     local segments = {}
     inputText = inputText or ""
+    textScale = textScale or getGuideTextScale()
+
+    -- Adjust maxWidth for scale (text will be scaled up, so we need to account for that)
+    local adjustedMaxWidth = maxWidth / textScale
+
     -- Convert \\ to newline
     inputText = string.gsub(inputText, "\\\\", "\n")
     for segment in string.gfind(inputText, "([^\n]*)\n?") do
@@ -246,7 +276,7 @@ local function wrapText(inputText, maxWidth, font)
         for j, word in ipairs(words) do
             local testLine = currentLine == "" and word or currentLine.." "..word
             tempText:SetText(testLine)
-            if tempText:GetStringWidth() <= maxWidth then
+            if tempText:GetStringWidth() <= adjustedMaxWidth then
                 currentLine = testLine
             else
                 wrappedText = wrappedText..(wrappedText=="" and "" or "\n")..currentLine
@@ -263,7 +293,7 @@ local function wrapText(inputText, maxWidth, font)
             lineCount = lineCount + 1
         end
     end
-    local textHeight = tempText:GetHeight() * lineCount
+    local textHeight = tempText:GetHeight() * lineCount * textScale
     return wrappedText, lineCount, textHeight
 end
 
@@ -726,16 +756,18 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                             local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
 
                             local textFrame = frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+                            applyTextScale(textFrame)
                             local wrappedText, lineCount, textHeight = wrapText(line.text or "", availableWidth)
                             textFrame:SetText(wrappedText)
                             textFrame:SetJustifyH("LEFT")
                             textFrame:SetJustifyV("TOP")
                             textFrame:SetWidth(availableWidth)
-                            local usedHeight = (lineCount * CONFIG.fontLineHeight)
+                            local scaledLineHeight = getScaledFontLineHeight()
+                            local usedHeight = (lineCount * scaledLineHeight)
 
                             -- Reserve extra height for XP progress (empty line + progress bar)
                             if line.experienceRequirement then
-                                usedHeight = usedHeight + (CONFIG.fontLineHeight * 2)
+                                usedHeight = usedHeight + (scaledLineHeight * 2)
                             end
 
                             textFrame:SetHeight(usedHeight)
@@ -790,6 +822,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                                             local objText = objColor .. "  - " .. obj.text .. "|r"
 
                                             local objFrame = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                                            applyTextScale(objFrame)
                                             local reservedIconWidth = CONFIG.iconWidth + 4
                                             local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
                                             local wrappedObj, objLineCount = wrapText(objText, availableWidth)
@@ -797,7 +830,7 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
                                             objFrame:SetJustifyH("LEFT")
                                             objFrame:SetJustifyV("TOP")
                                             objFrame:SetWidth(availableWidth)
-                                            local objHeight = objLineCount * CONFIG.fontLineHeight
+                                            local objHeight = objLineCount * getScaledFontLineHeight()
                                             objFrame:SetHeight(objHeight)
                                             objFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 2 + reservedIconWidth, yOffset)
 
@@ -905,17 +938,19 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             local availableWidth = CONFIG.totalWidth - CONFIG.checkboxSize - 16 - reservedIconWidth
 
             local textFrame = frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+            applyTextScale(textFrame)
 
             local wrappedText, lineCount, textHeight = wrapText(line.text or "", availableWidth)
             textFrame:SetText(wrappedText)
             textFrame:SetJustifyH("LEFT")
             textFrame:SetJustifyV("TOP")
             textFrame:SetWidth(availableWidth)
-            local usedHeight = (lineCount * CONFIG.fontLineHeight)
+            local scaledLineHeight = getScaledFontLineHeight()
+            local usedHeight = (lineCount * scaledLineHeight)
 
             -- Reserve extra height for XP progress (empty line + progress bar)
             if line.experienceRequirement then
-                usedHeight = usedHeight + (CONFIG.fontLineHeight * 2)
+                usedHeight = usedHeight + (scaledLineHeight * 2)
             end
 
             textFrame:SetHeight(usedHeight)

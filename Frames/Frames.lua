@@ -139,6 +139,39 @@ function GLV_OnAutomationCheckboxClick(checkbox, settingKeys)
     GLV.Settings:SetOption(isChecked, settingKeys)
 end
 
+-- Initialize scale slider from settings
+function GLV_InitScaleSlider(slider, settingKeys)
+    local value = GLV.Settings:GetOption(settingKeys) or 1
+    slider:SetValue(value)
+    getglobal(slider:GetName().."Text"):SetText(string.format("%.1f", value))
+end
+
+-- Handle guide text scale slider change
+function GLV_OnGuideScaleSliderChanged(slider, settingKeys)
+    local value = slider:GetValue()
+    -- Round to 1 decimal place
+    value = math.floor(value * 10 + 0.5) / 10
+    getglobal(slider:GetName().."Text"):SetText(string.format("%.1f", value))
+    GLV.Settings:SetOption(value, settingKeys)
+    -- Refresh guide to apply new scale
+    if GLV.RefreshGuide then
+        GLV:RefreshGuide()
+    end
+end
+
+-- Handle navigation scale slider change
+function GLV_OnNavScaleSliderChanged(slider, settingKeys)
+    local value = slider:GetValue()
+    -- Round to 1 decimal place
+    value = math.floor(value * 10 + 0.5) / 10
+    getglobal(slider:GetName().."Text"):SetText(string.format("%.1f", value))
+    GLV.Settings:SetOption(value, settingKeys)
+    -- Apply scale to navigation frame
+    if GLV.GuideNavigation and GLV.GuideNavigation.ApplyScale then
+        GLV.GuideNavigation:ApplyScale(value)
+    end
+end
+
 function GLV_MainLock_OnClick()
     local locked = GLV and GLV.Settings and GLV.Settings:GetOption({"UI", "Locked"}) or false
 

@@ -355,11 +355,82 @@
                                         <AbsValue val="20"/>
                                     </FontHeight>
                                 </FontString>
-                                <Texture>
-                                    <Color r="1" g="1" b="0" a="0.5"/>
-                                </Texture>
+                                <!-- Guide Text Scale Section -->
+                                <FontString name="$parentGuideScaleTitle" inherits="GameFontNormal" text="Guide Text Scale">
+                                    <Anchors>
+                                        <Anchor point="TOPLEFT" RelativeTo="$parent" RelativePoint="TOPLEFT">
+                                            <Offset x="20" y="-50"/>
+                                        </Anchor>
+                                    </Anchors>
+                                    <Color r="1" g="0.82" b="0"/>
+                                </FontString>
+                                <!-- Navigation Scale Section -->
+                                <FontString name="$parentNavScaleTitle" inherits="GameFontNormal" text="Navigation Scale">
+                                    <Anchors>
+                                        <Anchor point="TOPLEFT" RelativeTo="$parent" RelativePoint="TOPLEFT">
+                                            <Offset x="20" y="-140"/>
+                                        </Anchor>
+                                    </Anchors>
+                                    <Color r="1" g="0.82" b="0"/>
+                                </FontString>
                             </Layer>
                         </Layers>
+
+                        <Frames>
+                            <!-- Guide Text Scale Slider -->
+                            <Slider name="$parentGuideScaleSlider" inherits="OptionsSliderTemplate">
+                                <Size>
+                                    <AbsDimension x="200" y="17"/>
+                                </Size>
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsDisplayPageGuideScaleTitle" RelativePoint="BOTTOMLEFT">
+                                        <Offset x="10" y="-15"/>
+                                    </Anchor>
+                                </Anchors>
+                                <Scripts>
+                                    <OnLoad>
+                                        getglobal(this:GetName().."Low"):SetText("0.8");
+                                        getglobal(this:GetName().."High"):SetText("1.5");
+                                        getglobal(this:GetName().."Text"):SetText("1.0");
+                                        this:SetMinMaxValues(0.8, 1.5);
+                                        this:SetValueStep(0.1);
+                                    </OnLoad>
+                                    <OnShow>
+                                        GLV_InitScaleSlider(this, {"UI", "GuideTextScale"});
+                                    </OnShow>
+                                    <OnValueChanged>
+                                        GLV_OnGuideScaleSliderChanged(this, {"UI", "GuideTextScale"});
+                                    </OnValueChanged>
+                                </Scripts>
+                            </Slider>
+
+                            <!-- Navigation Scale Slider -->
+                            <Slider name="$parentNavScaleSlider" inherits="OptionsSliderTemplate">
+                                <Size>
+                                    <AbsDimension x="200" y="17"/>
+                                </Size>
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsDisplayPageNavScaleTitle" RelativePoint="BOTTOMLEFT">
+                                        <Offset x="10" y="-15"/>
+                                    </Anchor>
+                                </Anchors>
+                                <Scripts>
+                                    <OnLoad>
+                                        getglobal(this:GetName().."Low"):SetText("0.8");
+                                        getglobal(this:GetName().."High"):SetText("1.5");
+                                        getglobal(this:GetName().."Text"):SetText("1.0");
+                                        this:SetMinMaxValues(0.8, 1.5);
+                                        this:SetValueStep(0.1);
+                                    </OnLoad>
+                                    <OnShow>
+                                        GLV_InitScaleSlider(this, {"UI", "NavigationScale"});
+                                    </OnShow>
+                                    <OnValueChanged>
+                                        GLV_OnNavScaleSliderChanged(this, {"UI", "NavigationScale"});
+                                    </OnValueChanged>
+                                </Scripts>
+                            </Slider>
+                        </Frames>
 
                     </Frame>
 

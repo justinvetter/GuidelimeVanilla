@@ -134,10 +134,26 @@ function GuideNavigation:CreateNavigationFrame()
         navigationFrame:ClearAllPoints()
         navigationFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", savedPos[1], savedPos[2])
     end
-    
+
     navigationFrame:SetScript("OnUpdate", function()
         GuideNavigation:OnUpdate()
     end)
+
+    -- Apply saved scale
+    local savedScale = GLV.Settings:GetOption({"UI", "NavigationScale"}) or 1
+    if savedScale ~= 1 then
+        navigationFrame:SetScale(savedScale)
+    end
+end
+
+-- Apply scale to the navigation frame
+function GuideNavigation:ApplyScale(scale)
+    if not navigationFrame then
+        self:CreateNavigationFrame()
+    end
+    if navigationFrame then
+        navigationFrame:SetScale(scale or 1)
+    end
 end
 
 --[[ COORDINATE AND CALCULATION FUNCTIONS ]]--
