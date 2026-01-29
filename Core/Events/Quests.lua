@@ -492,11 +492,14 @@ function QuestTracker:OnQuestDetail()
     if not questTitle then return end
 
     -- Check if the current step has a [QA] tag for this quest
-    if self:IsQuestInCurrentStep(questTitle, "ACCEPT") then
+    local questId = self:GetQuestIdInCurrentStep(questTitle, "ACCEPT")
+    if questId then
         if GLV.Debug then
             DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QuestTracker]|r Auto-accepting quest: " .. questTitle)
         end
         AcceptQuest()
+        -- Track the quest acceptance to update guide step
+        self:TrackAccepted(questId, questTitle)
     end
 end
 
@@ -518,17 +521,21 @@ function QuestTracker:OnQuestComplete()
     end
 
     -- Check if the current step has a [QT] tag for this quest
-    if self:IsQuestInCurrentStep(questTitle, "TURNIN") then
+    local questId = self:GetQuestIdInCurrentStep(questTitle, "TURNIN")
+    if questId then
         if GLV.Debug then
             DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QuestTracker]|r Auto-turning in quest: " .. questTitle)
         end
         GetQuestReward()
+        -- Track the quest turnin to update guide step
+        self:HandleQuestAction(questId, questTitle, "TURNIN")
     end
 end
 
--- Check if a quest is in the current step with a specific action tag
-function QuestTracker:IsQuestInCurrentStep(questTitle, actionType)
-    if not GLV.CurrentDisplaySteps then return false end
+-- Get quest ID if quest is in the current step with a specific action tag
+-- Returns questId if found, nil otherwise
+function QuestTracker:GetQuestIdInCurrentStep(questTitle, actionType)
+    if not GLV.CurrentDisplaySteps then return nil end
 
     local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
     local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
@@ -545,7 +552,7 @@ function QuestTracker:IsQuestInCurrentStep(questTitle, actionType)
                         -- Get quest name from database
                         local questName = GLV:GetQuestNameByID(questTag.questId)
                         if questName and self:QuestNamesMatch(questTitle, questName) then
-                            return true
+                            return questTag.questId
                         end
                     end
                 end
@@ -553,7 +560,7 @@ function QuestTracker:IsQuestInCurrentStep(questTitle, actionType)
         end
     end
 
-    return false
+    return nil
 end
 
 
