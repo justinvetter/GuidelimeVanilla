@@ -290,11 +290,36 @@ function GLV:GetQuestAllCoords(id, questPart, onlyObjective)
                                 break
                             end
                         end
-                        
+
                         if validCoords then
                             table.insert(allCoords, {
                                 type = "end",
                                 npcId = npcID,
+                                x = validCoords[1],
+                                y = validCoords[2],
+                                z = validCoords[3]
+                            })
+                        end
+                    end
+                end
+            end
+            -- Handle quest end on Objects (e.g., A Dwarven Corpse)
+            if quest["end"].O then
+                for _, objectID in ipairs(quest["end"].O) do
+                    local objectData = VGDB["objects"]["data"][objectID]
+                    if objectData and objectData.coords then
+                        local validCoords = nil
+                        for _, coordSet in ipairs(objectData.coords) do
+                            if coordSet and coordSet[1] and coordSet[2] and coordSet[3] then
+                                validCoords = coordSet
+                                break
+                            end
+                        end
+
+                        if validCoords then
+                            table.insert(allCoords, {
+                                type = "end",
+                                objectId = objectID,
                                 x = validCoords[1],
                                 y = validCoords[2],
                                 z = validCoords[3]
@@ -348,16 +373,20 @@ function GLV:GetQuestAllCoords(id, questPart, onlyObjective)
                 if not objectiveCoordsAdded then
                     if VGDB["items"]["data"][targetItemID]["U"] then
                         local units = VGDB["items"]["data"][targetItemID]["U"]
-                        
+
                         local questZone = nil
+                        -- Try to get quest zone from start Unit
                         if quest.start and quest.start.U and quest.start.U[1] then
                             local startNPC = VGDB["units"]["data"][quest.start.U[1]]
-                            if startNPC then
-                                if startNPC.coords then
-                                    if startNPC.coords[1] then
-                                        questZone = startNPC.coords[1][3]
-                                    end
-                                end
+                            if startNPC and startNPC.coords and startNPC.coords[1] then
+                                questZone = startNPC.coords[1][3]
+                            end
+                        end
+                        -- Fallback: try to get quest zone from start Object
+                        if not questZone and quest.start and quest.start.O and quest.start.O[1] then
+                            local startObj = VGDB["objects"]["data"][quest.start.O[1]]
+                            if startObj and startObj.coords and startObj.coords[1] then
+                                questZone = startObj.coords[1][3]
                             end
                         end
                         
