@@ -454,10 +454,11 @@ function Parser:GetItemTexture(content)
     if not itemID then
         return ""
     end
-    
+
     local _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemID)
     if not itemTexture then
-        return ""
+        -- Fallback icon for items not yet cached
+        return "Interface\\Icons\\INV_Misc_QuestionMark"
     end
     return itemTexture
 end

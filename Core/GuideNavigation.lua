@@ -64,7 +64,27 @@ function GuideNavigation:CreateNavigationFrame()
     navigationFrame.arrow:SetTexture(ARROW_TEXTURE_PATH)
     navigationFrame.arrow:SetVertexColor(1, 1, 1, 1)
     navigationFrame.arrow:SetTexCoord(0, 56/512, 0, 42/512)
-    
+
+    -- Item icon button for EQUIP steps (initially hidden)
+    navigationFrame.itemButton = CreateFrame("Button", nil, navigationFrame)
+    navigationFrame.itemButton:SetWidth(48)
+    navigationFrame.itemButton:SetHeight(48)
+    navigationFrame.itemButton:SetAllPoints(navigationFrame)
+    navigationFrame.itemButton:Hide()
+
+    navigationFrame.itemIcon = navigationFrame.itemButton:CreateTexture(nil, "ARTWORK")
+    navigationFrame.itemIcon:SetAllPoints(navigationFrame.itemButton)
+    navigationFrame.itemIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+
+    navigationFrame.itemButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Click to equip")
+        GameTooltip:Show()
+    end)
+    navigationFrame.itemButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     navigationFrame.questName = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     navigationFrame.questName:SetPoint("TOP", navigationFrame, "BOTTOM", 0, -8)
     navigationFrame.questName:SetTextColor(1, 0.8, 0)
@@ -250,6 +270,7 @@ end
 -- Alias for backward compatibility
 function GuideNavigation:RemoveCurrentWaypoint()
     self:ClearAllWaypoints()
+    self:HideEquipItem()
 end
 
 --[[ NAVIGATION VISIBILITY CONTROL ]]--
@@ -773,9 +794,68 @@ function GuideNavigation:FindCoordinatesByType(coordsList, stepType)
     return targetCoords
 end
 
+-- Shows item icon for equip steps instead of the arrow
+function GuideNavigation:ShowEquipItem(itemId, itemName)
+    if not navigationFrame then
+        self:CreateNavigationFrame()
+    end
+    if not navigationFrame then return end
+
+    -- Get item texture
+    local _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+    if not itemTexture then
+        itemTexture = "Interface\\Icons\\INV_Misc_QuestionMark"
+    end
+
+    -- Setup icon and click handler
+    navigationFrame.itemIcon:SetTexture(itemTexture)
+    navigationFrame.itemButton:SetScript("OnClick", function()
+        -- Find and equip the item from bags
+        for bag = 0, 4 do
+            for slot = 1, GetContainerNumSlots(bag) do
+                local link = GetContainerItemLink(bag, slot)
+                if link and string.find(link, itemId) then
+                    UseContainerItem(bag, slot)
+                    return
+                end
+            end
+        end
+    end)
+
+    -- Show item button, hide arrow
+    navigationFrame.arrow:Hide()
+    navigationFrame.itemButton:Show()
+    navigationFrame.questName:SetText(itemName or "Equip item")
+    navigationFrame.objective:SetText("")
+    navigationFrame.questProgress:SetText("")
+    navigationFrame.distance:SetText("Click to equip")
+    navigationFrame:Show()
+
+    isNavigationActive = false  -- Don't update arrow rotation
+end
+
+-- Hides item icon and restores arrow mode
+function GuideNavigation:HideEquipItem()
+    if not navigationFrame then return end
+    navigationFrame.itemButton:Hide()
+    navigationFrame.arrow:Show()
+end
+
 -- Updates waypoint for a specific guide step
 function GuideNavigation:UpdateWaypointForStep(stepData)
     self:RemoveCurrentWaypoint()
+    self:HideEquipItem()
+
+    -- Check for EQUIP step
+    if stepData and stepData.lines then
+        for _, line in ipairs(stepData.lines) do
+            if line.stepType == "EQUIP" and line.equipItemId then
+                local itemName = GLV:GetItemNameById(line.equipItemId)
+                self:ShowEquipItem(line.equipItemId, itemName)
+                return
+            end
+        end
+    end
 
     -- Get current player position
     playerPos = self:GetPlayerPosition()
