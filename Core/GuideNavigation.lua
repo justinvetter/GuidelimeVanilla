@@ -105,6 +105,26 @@ function GuideNavigation:CreateNavigationFrame()
         GameTooltip:Hide()
     end)
 
+    -- Hearthstone button (initially hidden)
+    navigationFrame.hearthButton = CreateFrame("Button", nil, navigationFrame)
+    navigationFrame.hearthButton:SetWidth(48)
+    navigationFrame.hearthButton:SetHeight(48)
+    navigationFrame.hearthButton:SetAllPoints(navigationFrame)
+    navigationFrame.hearthButton:Hide()
+
+    navigationFrame.hearthIcon = navigationFrame.hearthButton:CreateTexture(nil, "ARTWORK")
+    navigationFrame.hearthIcon:SetAllPoints(navigationFrame.hearthButton)
+    navigationFrame.hearthIcon:SetTexture("Interface\\Icons\\INV_Misc_Rune_01")
+
+    navigationFrame.hearthButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Click to use Hearthstone")
+        GameTooltip:Show()
+    end)
+    navigationFrame.hearthButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     navigationFrame.questName = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     navigationFrame.questName:SetPoint("TOP", navigationFrame, "BOTTOM", 0, -8)
     navigationFrame.questName:SetTextColor(1, 0.8, 0)
@@ -307,6 +327,7 @@ end
 function GuideNavigation:RemoveCurrentWaypoint()
     self:ClearAllWaypoints()
     self:HideEquipItem()
+    self:HideHearthstone()
 end
 
 --[[ NAVIGATION VISIBILITY CONTROL ]]--
@@ -991,11 +1012,85 @@ function GuideNavigation:HideNextGuide()
     navigationFrame.arrow:Show()
 end
 
+-- Shows hearthstone icon for [H] steps instead of the arrow
+function GuideNavigation:ShowHearthstone(destination)
+    if not navigationFrame then
+        self:CreateNavigationFrame()
+    end
+    if not navigationFrame then return end
+
+    -- Setup click handler to use hearthstone (item ID 6948)
+    navigationFrame.hearthButton:SetScript("OnClick", function()
+        -- Find and use hearthstone from bags
+        local hearthUsed = false
+        for bag = 0, 4 do
+            for slot = 1, GetContainerNumSlots(bag) do
+                local link = GetContainerItemLink(bag, slot)
+                if link and string.find(link, "item:6948:") then
+                    UseContainerItem(bag, slot)
+                    hearthUsed = true
+                    break
+                end
+            end
+            if hearthUsed then break end
+        end
+
+        -- Schedule step completion after hearthstone cast time (~10s + buffer)
+        if hearthUsed then
+            navigationFrame.questName:SetText("Hearthing...")
+            navigationFrame.distance:SetText("Please wait...")
+            GLV.Ace:ScheduleEvent("GLV_HearthstoneComplete", function()
+                GuideNavigation:CompleteCurrentStep()
+            end, 12)
+        end
+    end)
+
+    -- Show hearthstone button, hide arrow
+    navigationFrame.arrow:Hide()
+    navigationFrame.hearthButton:Show()
+    navigationFrame.questName:SetText("Hearth to " .. (destination or "Inn"))
+    navigationFrame.objective:SetText("")
+    navigationFrame.questProgress:SetText("")
+    navigationFrame.distance:SetText("Click to use Hearthstone")
+    navigationFrame:Show()
+
+    isNavigationActive = false  -- Don't update arrow rotation
+end
+
+-- Complete the current step and advance to the next one
+function GuideNavigation:CompleteCurrentStep()
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+    local stepState = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "StepState"}) or {}
+
+    if currentStepIndex <= 0 then return end
+
+    -- Get the original index for this display step
+    local origIdx = GLV.CurrentDisplayToOriginal and GLV.CurrentDisplayToOriginal[currentStepIndex]
+    if origIdx then
+        stepState[origIdx] = true
+        GLV.Settings:SetOption(stepState, {"Guide", "Guides", currentGuideId, "StepState"})
+    end
+
+    -- Refresh the guide to update UI and advance to next step
+    if GLV.RefreshGuide then
+        GLV:RefreshGuide()
+    end
+end
+
+-- Hides hearthstone icon and restores arrow mode
+function GuideNavigation:HideHearthstone()
+    if not navigationFrame then return end
+    navigationFrame.hearthButton:Hide()
+    navigationFrame.arrow:Show()
+end
+
 -- Updates waypoint for a specific guide step
 function GuideNavigation:UpdateWaypointForStep(stepData)
     self:RemoveCurrentWaypoint()
     self:HideEquipItem()
     self:HideNextGuide()
+    self:HideHearthstone()
 
     -- Check for EQUIP step
     if stepData and stepData.lines then
@@ -1003,6 +1098,16 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
             if line.stepType == "EQUIP" and line.equipItemId then
                 local itemName = GLV:GetItemNameById(line.equipItemId)
                 self:ShowEquipItem(line.equipItemId, itemName)
+                return
+            end
+        end
+    end
+
+    -- Check for HEARTHSTONE step
+    if stepData and stepData.lines then
+        for _, line in ipairs(stepData.lines) do
+            if line.stepType == "HEARTHSTONE" and line.hearthDestination then
+                self:ShowHearthstone(line.hearthDestination)
                 return
             end
         end

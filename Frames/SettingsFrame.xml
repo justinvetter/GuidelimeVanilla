@@ -286,7 +286,7 @@
                                 </Anchors>
                                 <Scripts>
                                     <OnLoad>
-                                        getglobal(this:GetName().."Text"):SetText("Auto Accept Quests");
+                                        getglobal(this:GetName().."Text"):SetText("Auto Accept Quests (beta)");
                                     </OnLoad>
                                     <OnShow>
                                         GLV_InitAutomationCheckbox(this, {"Automation", "AutoAcceptQuests"});
@@ -306,7 +306,7 @@
                                 </Anchors>
                                 <Scripts>
                                     <OnLoad>
-                                        getglobal(this:GetName().."Text"):SetText("Auto Turnin Quests");
+                                        getglobal(this:GetName().."Text"):SetText("Auto Turnin Quests (beta)");
                                     </OnLoad>
                                     <OnShow>
                                         GLV_InitAutomationCheckbox(this, {"Automation", "AutoTurninQuests"});
@@ -326,7 +326,7 @@
                                 </Anchors>
                                 <Scripts>
                                     <OnLoad>
-                                        getglobal(this:GetName().."Text"):SetText("Auto Take Flights");
+                                        getglobal(this:GetName().."Text"):SetText("Auto Take Flights (beta)");
                                     </OnLoad>
                                     <OnShow>
                                         GLV_InitAutomationCheckbox(this, {"Automation", "AutoTakeFlight"});

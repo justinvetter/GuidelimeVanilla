@@ -170,10 +170,13 @@ function QuestTracker:CheckQuestObjectives(questIndex, questId, questTitle, isCo
         end
     end
     
-    if isComplete and isComplete == 1 then
+    -- isComplete can be 1, true, or any truthy value depending on WoW version
+    if isComplete and (isComplete == 1 or isComplete == true) then
         local currentState = self.previousQuestStates[questId]
         if not currentState or not currentState.wasComplete then
-            
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QuestTracker]|r Quest complete detected: " .. questTitle .. " (ID: " .. tostring(questId) .. ")")
+            end
             self:HandleQuestAction(questId, questTitle, "COMPLETE")
             
             self.previousQuestStates[questId] = {
@@ -245,7 +248,24 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
                 for _, questTag in ipairs(step.questTags) do
                     local actionKey = questTag.questId .. "_" .. questTag.tag
 
-                    if questTag.tag == actionType and questTag.questId == questId then
+                    -- Match by ID first, then fallback to name matching for multi-part quests
+                    local isMatch = false
+                    if questTag.tag == actionType then
+                        if tonumber(questTag.questId) == tonumber(questId) then
+                            isMatch = true
+                        elseif title then
+                            -- Fallback: match by name for quests with same name but different IDs
+                            local tagQuestName = GLV:GetQuestNameByID(questTag.questId)
+                            if tagQuestName and tagQuestName == title then
+                                isMatch = true
+                                if GLV.Debug then
+                                    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[QuestTracker]|r Name fallback match: " .. title .. " (guide ID: " .. tostring(questTag.questId) .. ", detected ID: " .. tostring(questId) .. ")")
+                                end
+                            end
+                        end
+                    end
+
+                    if isMatch then
                         stepQuestState[origIdx][actionKey] = true
                         hasMatchingAction = true
                         multiActionStepFound = true
@@ -282,6 +302,24 @@ function QuestTracker:HandleQuestAction(questId, title, actionType)
 
     if GLV.CharacterTracker then
         GLV.CharacterTracker:CheckCurrentStepXPRequirements()
+    end
+end
+
+-- Force navigation update based on current step (used after rapid quest actions)
+function QuestTracker:ForceNavigationUpdate()
+    if not GLV.GuideNavigation or not GLV.CurrentDisplaySteps then return end
+
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    if currentStepIndex > 0 and currentStepIndex <= table.getn(GLV.CurrentDisplaySteps) then
+        local stepData = GLV.CurrentDisplaySteps[currentStepIndex]
+        if stepData then
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[QuestTracker]|r Forcing navigation update for step " .. currentStepIndex)
+            end
+            GLV.GuideNavigation:OnStepChanged(stepData)
+        end
     end
 end
 
@@ -504,6 +542,11 @@ function QuestTracker:OnQuestDetail()
         AcceptQuest()
         -- Track the quest acceptance to update guide step
         self:TrackAccepted(questId, questTitle)
+
+        -- Force navigation update after a delay (handles rapid QT+QA sequences)
+        GLV.Ace:ScheduleEvent("GLV_PostAcceptNavUpdate", function()
+            self:ForceNavigationUpdate()
+        end, 0.3)
     end
 end
 
@@ -533,6 +576,11 @@ function QuestTracker:OnQuestComplete()
         GetQuestReward()
         -- Track the quest turnin to update guide step
         self:HandleQuestAction(questId, questTitle, "TURNIN")
+
+        -- Force navigation update after a delay (handles rapid QT+QA sequences)
+        GLV.Ace:ScheduleEvent("GLV_PostTurninNavUpdate", function()
+            self:ForceNavigationUpdate()
+        end, 0.5)
     end
 end
 
