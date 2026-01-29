@@ -74,6 +74,7 @@ Quest/NPC/Item data from ShaguDB stored in `db/` folder:
 The navigation frame displays different modes based on current step:
 - **Arrow Mode** (default): Shows directional arrow to waypoint with distance/objective
 - **Equip Item Mode**: Shows item icon with "Equip" instruction when step contains equip action
+- **Hearthstone Mode**: Shows hearthstone icon for `[H]` steps with click-to-use functionality and auto-complete after cast
 - **Next Guide Mode**: Shows clickable "Next Guide" button when on last step with `[NX]` tag
 
 Key methods:
@@ -81,6 +82,9 @@ Key methods:
 - `GuideNavigation:HideNextGuide()` - Return to arrow mode
 - `GuideNavigation:ShowEquipItem(itemId)` - Display equip item icon
 - `GuideNavigation:HideEquipItem()` - Return to arrow mode
+- `GuideNavigation:ShowHearthstone(destination)` - Display hearthstone icon with click handler, auto-completes step after ~12s cast
+- `GuideNavigation:HideHearthstone()` - Return to arrow mode
+- `GuideNavigation:CompleteCurrentStep()` - Mark current step complete and advance to next step
 - `GuideNavigation:ApplyScale(scale)` - Apply scale multiplier to navigation frame (from settings or manual value)
 
 ## Guide Syntax
@@ -109,7 +113,7 @@ Guides use tagged format parsed by `GuideParser.lua`:
 - `Core/GuideLibrary.lua` - Guide registration, dropdown, loading
 - `Core/GuideWriter.lua` - UI creation, checkbox handling, highlighting, text scaling
 - `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe, next guide button for guide transitions, frame scaling
-- `Core/Events/Quests.lua` - Quest hooks, state tracking, automation (auto-accept/turnin)
+- `Core/Events/Quests.lua` - Quest hooks, state tracking, automation (auto-accept/turnin), ForceNavigationUpdate() for rapid quest sequences
 - `Core/Events/Taxi.lua` - Flight path tracking and automation (auto-take flights)
 - `Helpers/DBTools.lua` - Database query functions (quest/NPC/item/object lookups)
 
@@ -134,7 +138,9 @@ this                    -- Inside XML event handlers, NOT self
 The addon handles multi-part quests (same name, different IDs) with fallback matching:
 - `GetQuestIDByName(name)` returns first matching quest ID
 - `GetQuestStatus(questId)` and `GetQuestProgress(questId)` fall back to name-based matching if exact ID not found
-- This ensures quest chains like "In Defense of the King's Lands" work correctly
+- `QuestTracker:HandleQuestAction()` matches quest tags by ID first, then falls back to name matching for multi-part quests
+- Quest completion detection supports both `isComplete == 1` (numeric) and `isComplete == true` (boolean)
+- This ensures quest chains like "In Defense of the King's Lands" work correctly across different quest IDs
 
 ## Adding New Guides
 

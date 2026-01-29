@@ -36,6 +36,10 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Zone-Aware Navigation**: Arrow automatically hides when in different zones and updates when you enter the correct zone
 - **Quest Objectives Display**: Shows kill/collect progress directly on the navigation frame
 - **Real-time Distance Updates**: Color-coded distance indicators (green=close, yellow=medium, red=far)
+- **Interactive Navigation Icons**: Navigation frame displays context-specific clickable icons:
+  - **Hearthstone Icon**: Click to use hearthstone on [H] steps, auto-completes after cast
+  - **Equip Item Icon**: Shows items that need to be equipped
+  - **Next Guide Button**: Clickable button on final step to load next guide
 - **Movable Frame**: Hold Shift + drag to reposition the arrow
 
 ### 🎯 Quest Tracking
@@ -47,7 +51,7 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
   - **Auto Turnin Quests**: Automatically turns in quests matching [QT] tags (skips if reward choice required)
   - **Auto Take Flights**: Automatically takes flights when the current step is [F]
 - **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
-- **Hearthstone Tracking**: Automatically completes hearthstone steps when you arrive at your destination
+- **Hearthstone Tracking**: Click the hearthstone icon in navigation frame on [H] steps to use hearthstone, step auto-completes after cast
 - **Spell Learning Tracking**: Automatically completes learn spell steps when you train skills or spells (uses Nampower API for profession tier verification)
 - **Quest Abandonment Handling**: Properly updates state when quests are abandoned
 - **XP Progress Bars**: Visual colored progress bars for grind/XP requirement steps showing current progress
@@ -57,6 +61,10 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Clickable Icons**: Special action icons (Hearthstone, items to use)
 - **Color-coded Steps**: Visual distinction between step types and states
 - **Quest Tags**: Colored markers for accept and turnin steps
+- **Display Settings**: Customizable UI scaling available in Settings > Display:
+  - **Guide Text Scale** (0.8-1.5): Adjust the size of guide step text
+  - **Navigation Scale** (0.8-1.5): Adjust the size of the navigation arrow frame
+  - **Auto-reload**: UI automatically reloads when display settings are changed for instant effect
 
 ## Installation
 
