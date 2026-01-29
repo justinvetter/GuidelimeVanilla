@@ -34,7 +34,6 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Automatic Waypoints**: Creates waypoints for quest objectives automatically
 - **Smart Coordinate Selection**: Automatically selects the best location based on step type (quest giver, turn-in NPC, or objective area)
 - **Zone-Aware Navigation**: Arrow automatically hides when in different zones and updates when you enter the correct zone
-- **[TAR] Tag Support**: Navigate to specific NPCs using [TAR] tags in guides
 - **Quest Objectives Display**: Shows kill/collect progress directly on the navigation frame
 - **Real-time Distance Updates**: Color-coded distance indicators (green=close, yellow=medium, red=far)
 - **Movable Frame**: Hold Shift + drag to reposition the arrow
@@ -53,7 +52,6 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Clean Design**: Organized interface with consistent styling
 - **Clickable Icons**: Special action icons (Hearthstone, items to use)
 - **Color-coded Steps**: Visual distinction between step types and states
-- **Quest Tags**: Colored markers for accept and turnin steps
 
 ## Installation
 
@@ -67,42 +65,6 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 2. Follow the steps - checkboxes update automatically
 3. Navigation arrow guides you to objectives
 4. Click checkboxes manually if needed
-
-## Adding Guides
-
-Create a `.lua` file in `Guides/` using this format:
-```lua
-GLV:RegisterGuide([[
-[N 1-10 My Guide Name]
-[GA Alliance]
-[D Guide description\\Line 2\\Line 3]
-
-[QA123] Accept quest
-[QC123] Complete objectives
-[QT123] Turn in quest
-[O][QC456] Ongoing step - stays pinned while you continue
-[G 45.5,32 Westfall] Go to specific coordinates
-[TAR823] Navigate to NPC with ID 823
-[P Stormwind] Get flight path
-[F Stormwind] Fly to destination - auto-completes when flight is taken
-[H Stormwind] Use hearthstone - auto-completes when you arrive at destination
-[LE SP 3279] Learn spell (by spell ID) - auto-completes when spell is learned
-[NX 10-20 Next Guide Name]
-
-Multi-line step text example:\\Take the boat and wait for it to depart.\\Craft bandages or fish while you wait.
-]], "My Guides")
-```
-
-Add to `Guides/guides.xml`:
-```xml
-<Script file="MyGuides\My_Guide.lua"/>
-```
-
-### Guide Syntax Features
-
-- **Line Breaks**: Use `\\` (double backslash) to create line breaks in step text and descriptions
-  - Example: `[D Guide info\\Website: example.com\\Discord: link]`
-  - Example: `Take the boat to Auberdine\\Craft bandages while you wait`
 
 ## Acknowledgments
 
