@@ -566,12 +566,24 @@ end
 function GuideNavigation:GetQuestStatus(questId)
     if not questId then return false, false end
 
+    -- Get the quest name we're looking for from the database
+    local expectedName = GLV:GetQuestNameByID(questId)
+
     local numEntries = GetNumQuestLogEntries()
     for i = 1, numEntries do
         local title, level, tag, isHeader, isCollapsed, isComplete = GetQuestLogTitle(i)
         if title and not isHeader then
+            -- First try exact ID match
             local logQuestId = GLV:GetQuestIDByName(title)
             if tonumber(logQuestId) == tonumber(questId) then
+                return true, (isComplete == 1 or isComplete == true)
+            end
+
+            -- Fallback: match by name (for multi-part quests with same name but different IDs)
+            if expectedName and title == expectedName then
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Quest matched by name: '" .. title .. "' (looking for ID " .. tostring(questId) .. ")")
+                end
                 return true, (isComplete == 1 or isComplete == true)
             end
         end
@@ -583,28 +595,68 @@ end
 -- Get the first uncompleted quest action from step (QT before QA)
 -- Returns: questTag, questId, actionType
 function GuideNavigation:GetCurrentQuestAction(stepData)
-    if not stepData or not stepData.lines then
+    if not stepData then
         return nil, nil, nil
     end
 
     -- Collect all quest tags in order from the step
     local questActions = {}
-    for _, line in ipairs(stepData.lines) do
-        if line.questTags then
-            for _, questTag in ipairs(line.questTags) do
-                table.insert(questActions, {
-                    tag = questTag.tag,
-                    questId = questTag.questId,
-                    title = questTag.title,
-                    coords = line.coords
-                })
+
+    -- First check step-level questTags (main source)
+    if stepData.questTags then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Found " .. table.getn(stepData.questTags) .. " step-level questTags")
+        end
+        for _, questTag in ipairs(stepData.questTags) do
+            if GLV.Debug then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r  - Tag: " .. tostring(questTag.tag) .. " QuestId: " .. tostring(questTag.questId))
+            end
+            table.insert(questActions, {
+                tag = questTag.tag,
+                questId = questTag.questId,
+                title = questTag.title,
+                coords = stepData.coords
+            })
+        end
+    else
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r No step-level questTags")
+        end
+    end
+
+    -- Also check line-level questTags (fallback)
+    if stepData.lines then
+        for lineIdx, line in ipairs(stepData.lines) do
+            if line.questTags then
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Found " .. table.getn(line.questTags) .. " line-level questTags on line " .. lineIdx)
+                end
+                for _, questTag in ipairs(line.questTags) do
+                    if GLV.Debug then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r  - Tag: " .. tostring(questTag.tag) .. " QuestId: " .. tostring(questTag.questId))
+                    end
+                    table.insert(questActions, {
+                        tag = questTag.tag,
+                        questId = questTag.questId,
+                        title = questTag.title,
+                        coords = line.coords
+                    })
+                end
             end
         end
+    end
+
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Total questActions: " .. table.getn(questActions))
     end
 
     -- Find the first action that needs to be done
     for _, action in ipairs(questActions) do
         local inLog, isComplete = self:GetQuestStatus(action.questId)
+
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Checking " .. tostring(action.tag) .. " q" .. tostring(action.questId) .. " inLog=" .. tostring(inLog) .. " isComplete=" .. tostring(isComplete))
+        end
 
         if action.tag == "TURNIN" then
             -- QT: Need to turn in if quest is in log
@@ -619,6 +671,9 @@ function GuideNavigation:GetCurrentQuestAction(stepData)
         elseif action.tag == "COMPLETE" then
             -- QC: Need to complete if quest is in log but not complete
             if inLog and not isComplete then
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Returning COMPLETE for q" .. tostring(action.questId))
+                end
                 return action, action.questId, "COMPLETE"
             end
         end
@@ -962,11 +1017,12 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
     local stepType = actionType or self:GetStepType(stepData)
 
     -- Store current quest and action type for progress display
-    if currentQuestId then
-        self.currentQuestId = currentQuestId
-    end
-    -- Store action type (use stepType as fallback for generic steps)
+    self.currentQuestId = currentQuestId
     self.currentActionType = actionType or stepType
+
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[Nav]|r Stored: currentQuestId=" .. tostring(self.currentQuestId) .. " currentActionType=" .. tostring(self.currentActionType))
+    end
 
     local targetCoords = nil
 

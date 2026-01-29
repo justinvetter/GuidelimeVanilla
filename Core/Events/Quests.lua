@@ -108,6 +108,9 @@ end
 function QuestTracker:GetQuestProgress(questId)
     if not questId then return nil end
 
+    -- Get the quest name we're looking for from the database
+    local expectedName = GLV:GetQuestNameByID(questId)
+
     local numEntries = GetNumQuestLogEntries()
 
     for questIndex = 1, numEntries do
@@ -115,7 +118,8 @@ function QuestTracker:GetQuestProgress(questId)
 
         if questLogTitleText and not isHeader then
             local logQuestId = GLV:GetQuestIDByName(questLogTitleText)
-            if tonumber(logQuestId) == tonumber(questId) then
+            -- Match by exact ID or by name (for multi-part quests with same name but different IDs)
+            if tonumber(logQuestId) == tonumber(questId) or (expectedName and questLogTitleText == expectedName) then
                 SelectQuestLogEntry(questIndex)
                 local numObjectives = GetNumQuestLeaderBoards()
 
