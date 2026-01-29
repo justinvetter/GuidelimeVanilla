@@ -533,27 +533,20 @@ end
 
 -- Calculate new active step based on checkbox state
 local function calculateNewActiveStep(checked, currentIndex, currentActiveStep, displaySteps, displayIndexToOriginalIndex, stepState)
-    if not checked then
-        -- When unchecking, always recalculate to find first unchecked step
-        return findFirstUncheckedStep(displaySteps, displayIndexToOriginalIndex, stepState)
-    end
-    
-    -- When checking
-    if currentIndex == currentActiveStep then
-        -- Move to next unchecked step
+    -- Always recalculate to find the first unchecked step
+    local firstUnchecked = findFirstUncheckedStep(displaySteps, displayIndexToOriginalIndex, stepState)
+
+    -- If all steps are checked, stay on the last step with a checkbox
+    if firstUnchecked == 1 and stepState[displayIndexToOriginalIndex[1]] then
         local totalSteps = table.getn(displaySteps)
-        for i = currentIndex + 1, totalSteps do
+        for i = totalSteps, 1, -1 do
             if displaySteps[i] and displaySteps[i].hasCheckbox then
-                local orig = displayIndexToOriginalIndex[i]
-                if orig and not stepState[orig] then
-                    return i
-                end
+                return i
             end
         end
-        return currentIndex -- Stay on current if no more unchecked
     end
-    
-    return currentActiveStep
+
+    return firstUnchecked
 end
 
 --[[ MAIN GUIDE FUNCTIONS ]]--

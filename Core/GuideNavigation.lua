@@ -85,6 +85,26 @@ function GuideNavigation:CreateNavigationFrame()
         GameTooltip:Hide()
     end)
 
+    -- Next Guide button (initially hidden)
+    navigationFrame.nextGuideButton = CreateFrame("Button", nil, navigationFrame)
+    navigationFrame.nextGuideButton:SetWidth(48)
+    navigationFrame.nextGuideButton:SetHeight(48)
+    navigationFrame.nextGuideButton:SetAllPoints(navigationFrame)
+    navigationFrame.nextGuideButton:Hide()
+
+    navigationFrame.nextGuideIcon = navigationFrame.nextGuideButton:CreateTexture(nil, "ARTWORK")
+    navigationFrame.nextGuideIcon:SetAllPoints(navigationFrame.nextGuideButton)
+    navigationFrame.nextGuideIcon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+
+    navigationFrame.nextGuideButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Click for next guide")
+        GameTooltip:Show()
+    end)
+    navigationFrame.nextGuideButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
     navigationFrame.questName = navigationFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     navigationFrame.questName:SetPoint("TOP", navigationFrame, "BOTTOM", 0, -8)
     navigationFrame.questName:SetTextColor(1, 0.8, 0)
@@ -841,10 +861,70 @@ function GuideNavigation:HideEquipItem()
     navigationFrame.arrow:Show()
 end
 
+-- Shows the next guide button for the last step
+function GuideNavigation:ShowNextGuide(nextGuideName)
+    if not navigationFrame then
+        self:CreateNavigationFrame()
+    end
+
+    -- Store next guide content for the click handler
+    local nextGuideContent = nextGuideName
+
+    navigationFrame.nextGuideButton:SetScript("OnClick", function()
+        if not nextGuideContent then return end
+
+        -- Parse the next guide content: "XX-XX Name" format
+        local nextMinLevel, nextMaxLevel, guideName = string.match(nextGuideContent, "(%d+)-(%d+)%s+(.+)")
+        if not guideName then
+            guideName = nextGuideContent
+        end
+
+        -- Generate the expected guide ID
+        local expectedGuideId = string.gsub(guideName, "%s+", "_")
+        if nextMinLevel and nextMinLevel ~= "" then
+            expectedGuideId = expectedGuideId .. "_" .. nextMinLevel
+        end
+        if nextMaxLevel and nextMaxLevel ~= "" then
+            expectedGuideId = expectedGuideId .. "_" .. nextMaxLevel
+        end
+
+        -- Look for the guide and load it
+        for groupName, groupGuides in pairs(GLV.loadedGuides) do
+            if groupGuides then
+                for guideId, guideData in pairs(groupGuides) do
+                    if guideId == expectedGuideId then
+                        GLV:LoadGuide(groupName, guideId)
+                        return
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Show next guide button, hide arrow
+    navigationFrame.arrow:Hide()
+    navigationFrame.nextGuideButton:Show()
+    navigationFrame.questName:SetText(nextGuideName or "Next Guide")
+    navigationFrame.objective:SetText("")
+    navigationFrame.questProgress:SetText("")
+    navigationFrame.distance:SetText("Click for next guide")
+    navigationFrame:Show()
+
+    isNavigationActive = false  -- Don't update arrow rotation
+end
+
+-- Hides next guide button and restores arrow mode
+function GuideNavigation:HideNextGuide()
+    if not navigationFrame then return end
+    navigationFrame.nextGuideButton:Hide()
+    navigationFrame.arrow:Show()
+end
+
 -- Updates waypoint for a specific guide step
 function GuideNavigation:UpdateWaypointForStep(stepData)
     self:RemoveCurrentWaypoint()
     self:HideEquipItem()
+    self:HideNextGuide()
 
     -- Check for EQUIP step
     if stepData and stepData.lines then
@@ -854,6 +934,18 @@ function GuideNavigation:UpdateWaypointForStep(stepData)
                 self:ShowEquipItem(line.equipItemId, itemName)
                 return
             end
+        end
+    end
+
+    -- Check for NEXT_GUIDE step (last step with clickToNext flag)
+    if GLV.CurrentGuide and GLV.CurrentGuide.clickToNext and GLV.CurrentGuide.next then
+        local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+        local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+        local totalSteps = GLV.CurrentDisplayStepsCount or 0
+
+        if currentStepIndex == totalSteps then
+            self:ShowNextGuide(GLV.CurrentGuide.next)
+            return
         end
     end
 
