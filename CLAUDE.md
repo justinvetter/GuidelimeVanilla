@@ -50,10 +50,17 @@ GLV.Settings:GetOption({"Guide", "Guides", guideId, "StepState"})
 GLV.Settings:SetOption(value, {"Guide", "CurrentGuide"})
 ```
 
+**Automation Settings** (Settings > Guides):
+- `{"Automation", "AutoAcceptQuests"}` - Auto-accept quests when current step has `[QA]` tag
+- `{"Automation", "AutoTurninQuests"}` - Auto-turnin quests when current step has `[QT]` tag (skips if reward choice required)
+- `{"Automation", "AutoTakeFlight"}` - Auto-take flight when current step has `[F]` tag
+
 ### Database (VGDB)
 
 Quest/NPC/Item data from ShaguDB stored in `db/` folder:
 - `VGDB.quests[locale][id]` - Quest data with `.T` (title), `.start`, `.end`, `.obj`
+  - `.end` can have `.O` array for quests that turn in at objects instead of NPCs
+  - `.start` can have `.O` array for quest-giving objects
 - `VGDB.units.data[id]` - NPC coords in `.coords[n] = {x, y, zoneId}`
 - `VGDB.items.data[id]` - Item coords and drop sources (`.U`, `.O`)
 - `VGDB.zones[locale][id]` - Zone name translations
@@ -97,8 +104,9 @@ Guides use tagged format parsed by `GuideParser.lua`:
 - `Core/GuideLibrary.lua` - Guide registration, dropdown, loading
 - `Core/GuideWriter.lua` - UI creation, checkbox handling, highlighting
 - `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe, next guide button for guide transitions
-- `Core/Events/Quests.lua` - Quest hooks and state tracking
-- `Helpers/DBTools.lua` - Database query functions (quest/NPC/item lookups)
+- `Core/Events/Quests.lua` - Quest hooks, state tracking, automation (auto-accept/turnin)
+- `Core/Events/Taxi.lua` - Flight path tracking and automation (auto-take flights)
+- `Helpers/DBTools.lua` - Database query functions (quest/NPC/item/object lookups)
 
 ## Lua 5.0 Compatibility Notes
 
@@ -115,6 +123,13 @@ this                    -- Inside XML event handlers, NOT self
 
 - **No inline textures in text**: The `|Tpath:size|t` escape sequence does NOT work in WoW 1.12. To show icons inline with text, you must create separate Texture/Button frames and position them manually, or use colored text characters as substitutes.
 - **Limited escape sequences**: Only `|cAARRGGBB` (color) and `|r` (reset) work reliably in FontStrings.
+
+## Quest Matching
+
+The addon handles multi-part quests (same name, different IDs) with fallback matching:
+- `GetQuestIDByName(name)` returns first matching quest ID
+- `GetQuestStatus(questId)` and `GetQuestProgress(questId)` fall back to name-based matching if exact ID not found
+- This ensures quest chains like "In Defense of the King's Lands" work correctly
 
 ## Adding New Guides
 
