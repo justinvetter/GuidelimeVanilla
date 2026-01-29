@@ -82,6 +82,26 @@
                             </Layer>
                         </Layers>
                     </Frame>
+
+                    <!-- CLOSE BUTTON -->
+                    <Button name="$parentCloseButton" inherits="UIPanelButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPRIGHT" RelativeTo="GLV_Settings" RelativePoint="TOPRIGHT">
+                                <Offset x="-10" y="-10"/>
+                            </Anchor>
+                        </Anchors>
+                        <NormalTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Up"/>
+                        <PushedTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Down"/>
+                        <HighlightTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Highlight" alphaMode="ADD"/>
+                        <Scripts>
+                            <OnClick>
+                                GLV_Settings:Hide();
+                            </OnClick>
+                        </Scripts>
+                    </Button>
                 </Frames>
 
             </Frame>
