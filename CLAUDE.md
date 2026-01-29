@@ -31,8 +31,8 @@ Key global objects:
 - `GLV.CharacterTracker` - XP/level tracking
 - `GLV.TaxiTracker` - Flight path tracking
 - `GLV.GossipTracker` - Gossip dialog tracking
-- `GLV.GuideNavigation` - Arrow navigation system
-- `GLV.CurrentGuide` - Currently loaded guide data
+- `GLV.GuideNavigation` - Arrow navigation and guide transitions (arrow display, next guide button)
+- `GLV.CurrentGuide` - Currently loaded guide data (includes `.clickToNext` and `.next` for guide chaining)
 - `GLV.CurrentDisplaySteps` - Filtered/displayed steps array
 
 ### Data Flow
@@ -58,6 +58,19 @@ Quest/NPC/Item data from ShaguDB stored in `db/` folder:
 - `VGDB.items.data[id]` - Item coords and drop sources (`.U`, `.O`)
 - `VGDB.zones[locale][id]` - Zone name translations
 
+### Navigation System
+
+The navigation frame displays different modes based on current step:
+- **Arrow Mode** (default): Shows directional arrow to waypoint with distance/objective
+- **Equip Item Mode**: Shows item icon with "Equip" instruction when step contains equip action
+- **Next Guide Mode**: Shows clickable "Next Guide" button when on last step with `[NX]` tag
+
+Key methods:
+- `GuideNavigation:ShowNextGuide(nextGuideName)` - Display next guide button and parse/load guide on click
+- `GuideNavigation:HideNextGuide()` - Return to arrow mode
+- `GuideNavigation:ShowEquipItem(itemId)` - Display equip item icon
+- `GuideNavigation:HideEquipItem()` - Return to arrow mode
+
 ## Guide Syntax
 
 Guides use tagged format parsed by `GuideParser.lua`:
@@ -73,7 +86,7 @@ Guides use tagged format parsed by `GuideParser.lua`:
 | `[A class]` | Class-specific step | `[A Mage] [QA3104]` |
 | `[XP level]` | XP requirement | `[XP4-290]` |
 | `[OC]` | Optional, completes with next | `[OC]Grind north` |
-| `[NX x-y Name]` | Link to next guide | `[NX 11-13 Westfall]` |
+| `[NX x-y Name]` | Link to next guide (shows clickable button on last step) | `[NX 11-13 Westfall]` |
 | `[P name]` | Get flight path | `[P Stormwind]` |
 | `[H]` | Use hearthstone | `[H] to Stormwind` |
 
@@ -83,7 +96,7 @@ Guides use tagged format parsed by `GuideParser.lua`:
 - `Core/GuideParser.lua` - Tag parsing, step extraction
 - `Core/GuideLibrary.lua` - Guide registration, dropdown, loading
 - `Core/GuideWriter.lua` - UI creation, checkbox handling, highlighting
-- `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe
+- `Core/GuideNavigation.lua` - Arrow navigation using Astrolabe, next guide button for guide transitions
 - `Core/Events/Quests.lua` - Quest hooks and state tracking
 - `Helpers/DBTools.lua` - Database query functions (quest/NPC/item lookups)
 
