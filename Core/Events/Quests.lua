@@ -534,28 +534,29 @@ end
 
 -- Get quest ID if quest is in the current step with a specific action tag
 -- Returns questId if found, nil otherwise
+-- Only checks the current active step (not future steps)
 function QuestTracker:GetQuestIdInCurrentStep(questTitle, actionType)
     if not GLV.CurrentDisplaySteps then return nil end
 
     local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
     local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
 
-    -- Check current step and a few steps ahead (to handle optional steps)
-    for offset = 0, 3 do
-        local stepIndex = currentStepIndex + offset
-        if stepIndex > 0 and stepIndex <= table.getn(GLV.CurrentDisplaySteps) then
-            local step = GLV.CurrentDisplaySteps[stepIndex]
+    -- Only check the current step
+    if currentStepIndex <= 0 or currentStepIndex > table.getn(GLV.CurrentDisplaySteps) then
+        return nil
+    end
 
-            if step and step.questTags and table.getn(step.questTags) > 0 then
-                for _, questTag in ipairs(step.questTags) do
-                    if questTag.tag == actionType then
-                        -- Get quest name from database
-                        local questName = GLV:GetQuestNameByID(questTag.questId)
-                        if questName and self:QuestNamesMatch(questTitle, questName) then
-                            return questTag.questId
-                        end
-                    end
-                end
+    local step = GLV.CurrentDisplaySteps[currentStepIndex]
+    if not step or not step.questTags or table.getn(step.questTags) == 0 then
+        return nil
+    end
+
+    for _, questTag in ipairs(step.questTags) do
+        if questTag.tag == actionType then
+            -- Get quest name from database
+            local questName = GLV:GetQuestNameByID(questTag.questId)
+            if questName and self:QuestNamesMatch(questTitle, questName) then
+                return questTag.questId
             end
         end
     end
