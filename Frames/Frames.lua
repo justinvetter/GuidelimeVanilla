@@ -127,6 +127,18 @@ function GLV_MainLock_OnLoad()
     end);
 end
 
+-- Initialize automation checkbox from settings
+function GLV_InitAutomationCheckbox(checkbox, settingKeys)
+    local value = GLV.Settings:GetOption(settingKeys) or false
+    checkbox:SetChecked(value)
+end
+
+-- Handle automation checkbox click
+function GLV_OnAutomationCheckboxClick(checkbox, settingKeys)
+    local isChecked = checkbox:GetChecked() == 1
+    GLV.Settings:SetOption(isChecked, settingKeys)
+end
+
 function GLV_MainLock_OnClick()
     local locked = GLV and GLV.Settings and GLV.Settings:GetOption({"UI", "Locked"}) or false
 

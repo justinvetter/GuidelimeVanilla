@@ -41,6 +41,11 @@ local defaults = {
         },
         TaxiTracker = {
             KnownTaxiNodes = {},
+        },
+        Automation = {
+            AutoAcceptQuests = false,
+            AutoTurninQuests = false,
+            AutoTakeFlight = false,
         }
     }
 }

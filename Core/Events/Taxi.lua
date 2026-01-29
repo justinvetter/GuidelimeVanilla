@@ -73,6 +73,61 @@ function TaxiTracker:OnTaxiMapOpened()
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Taxi map opened")
     end
     self:CheckForNewFlightPaths()
+    self:CheckAutoFlight()
+end
+
+-- Check if current step is a FLY_TO and auto-take flight if enabled
+function TaxiTracker:CheckAutoFlight()
+    local autoFlight = GLV.Settings:GetOption({"Automation", "AutoTakeFlight"})
+    if not autoFlight then return end
+
+    if not GLV.CurrentDisplaySteps then return end
+
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    if currentStepIndex <= 0 or currentStepIndex > table.getn(GLV.CurrentDisplaySteps) then
+        return
+    end
+
+    local step = GLV.CurrentDisplaySteps[currentStepIndex]
+    if not step or not step.lines then return end
+
+    -- Find FLY_TO destination in current step
+    local flyToDestination = nil
+    for _, line in ipairs(step.lines) do
+        if line.stepType == "FLY_TO" and line.destination then
+            flyToDestination = line.destination
+            break
+        end
+    end
+
+    if not flyToDestination then return end
+
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF[TaxiTracker]|r Looking for flight to: " .. flyToDestination)
+    end
+
+    -- Search taxi nodes for matching destination
+    local numNodes = NumTaxiNodes()
+    for i = 1, numNodes do
+        local nodeName = TaxiNodeName(i)
+        local nodeType = TaxiNodeGetType(i)
+
+        if nodeType == "REACHABLE" and nodeName then
+            if self:IsFlightPathMatch(flyToDestination, nodeName) then
+                if GLV.Debug then
+                    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[TaxiTracker]|r Auto-taking flight to: " .. nodeName)
+                end
+                TakeTaxiNode(i)
+                return
+            end
+        end
+    end
+
+    if GLV.Debug then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[TaxiTracker]|r No matching flight found for: " .. flyToDestination)
+    end
 end
 
 function TaxiTracker:CheckForNewFlightPaths()   

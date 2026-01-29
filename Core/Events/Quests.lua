@@ -45,6 +45,10 @@ function QuestTracker:Init()
                 self:OnQuestLogUpdate(true)  -- Force check, bypass throttle
             end, 0.5)
         end)
+
+        -- Auto accept/turnin events
+        GLV.Ace:RegisterEvent("QUEST_DETAIL", function() self:OnQuestDetail() end)
+        GLV.Ace:RegisterEvent("QUEST_COMPLETE", function() self:OnQuestComplete() end)
     end
     
     self.previousQuestStates = {}
@@ -474,6 +478,82 @@ function QuestTracker:VerifyQuestAfterAccept(expectedTitle, expectedId)
 
         return false
     end, 0.5)
+end
+
+
+--[[ AUTO ACCEPT/TURNIN ]]--
+
+-- Called when quest detail frame is shown (NPC offers a quest)
+function QuestTracker:OnQuestDetail()
+    local autoAccept = GLV.Settings:GetOption({"Automation", "AutoAcceptQuests"})
+    if not autoAccept then return end
+
+    local questTitle = GetTitleText()
+    if not questTitle then return end
+
+    -- Check if the current step has a [QA] tag for this quest
+    if self:IsQuestInCurrentStep(questTitle, "ACCEPT") then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QuestTracker]|r Auto-accepting quest: " .. questTitle)
+        end
+        AcceptQuest()
+    end
+end
+
+-- Called when quest complete frame is shown (NPC ready to turn in)
+function QuestTracker:OnQuestComplete()
+    local autoTurnin = GLV.Settings:GetOption({"Automation", "AutoTurninQuests"})
+    if not autoTurnin then return end
+
+    local questTitle = GetTitleText()
+    if not questTitle then return end
+
+    -- Don't auto-turnin if there are multiple reward choices
+    local numChoices = GetNumQuestChoices()
+    if numChoices and numChoices > 1 then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[QuestTracker]|r Skipping auto-turnin (reward choice required): " .. questTitle)
+        end
+        return
+    end
+
+    -- Check if the current step has a [QT] tag for this quest
+    if self:IsQuestInCurrentStep(questTitle, "TURNIN") then
+        if GLV.Debug then
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00[QuestTracker]|r Auto-turning in quest: " .. questTitle)
+        end
+        GetQuestReward()
+    end
+end
+
+-- Check if a quest is in the current step with a specific action tag
+function QuestTracker:IsQuestInCurrentStep(questTitle, actionType)
+    if not GLV.CurrentDisplaySteps then return false end
+
+    local currentGuideId = GLV.Settings:GetOption({"Guide", "CurrentGuide"}) or "Unknown"
+    local currentStepIndex = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
+
+    -- Check current step and a few steps ahead (to handle optional steps)
+    for offset = 0, 3 do
+        local stepIndex = currentStepIndex + offset
+        if stepIndex > 0 and stepIndex <= table.getn(GLV.CurrentDisplaySteps) then
+            local step = GLV.CurrentDisplaySteps[stepIndex]
+
+            if step and step.questTags and table.getn(step.questTags) > 0 then
+                for _, questTag in ipairs(step.questTags) do
+                    if questTag.tag == actionType then
+                        -- Get quest name from database
+                        local questName = GLV:GetQuestNameByID(questTag.questId)
+                        if questName and self:QuestNamesMatch(questTitle, questName) then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 

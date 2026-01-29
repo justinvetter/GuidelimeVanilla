@@ -238,11 +238,79 @@
                                         <AbsValue val="20"/>
                                     </FontHeight>
                                 </FontString>
-                                <Texture>
-                                    <Color r="0" g="1" b="1" a="0.5"/>
-                                </Texture>
+                                <!-- Automation Section Title -->
+                                <FontString name="$parentAutomationTitle" inherits="GameFontNormal" text="Automation">
+                                    <Anchors>
+                                        <Anchor point="TOPLEFT" RelativeTo="$parent" RelativePoint="TOPLEFT">
+                                            <Offset x="20" y="-50"/>
+                                        </Anchor>
+                                    </Anchors>
+                                    <Color r="1" g="0.82" b="0"/>
+                                </FontString>
                             </Layer>
                         </Layers>
+
+                        <Frames>
+                            <!-- Auto Accept Quests Checkbox -->
+                            <CheckButton name="$parentAutoAcceptQuests" inherits="OptionsCheckButtonTemplate">
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsGuidesPageAutomationTitle" RelativePoint="BOTTOMLEFT">
+                                        <Offset x="0" y="-10"/>
+                                    </Anchor>
+                                </Anchors>
+                                <Scripts>
+                                    <OnLoad>
+                                        getglobal(this:GetName().."Text"):SetText("Auto Accept Quests");
+                                    </OnLoad>
+                                    <OnShow>
+                                        GLV_InitAutomationCheckbox(this, {"Automation", "AutoAcceptQuests"});
+                                    </OnShow>
+                                    <OnClick>
+                                        GLV_OnAutomationCheckboxClick(this, {"Automation", "AutoAcceptQuests"});
+                                    </OnClick>
+                                </Scripts>
+                            </CheckButton>
+
+                            <!-- Auto Turnin Quests Checkbox -->
+                            <CheckButton name="$parentAutoTurninQuests" inherits="OptionsCheckButtonTemplate">
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsGuidesPageAutoAcceptQuests" RelativePoint="BOTTOMLEFT">
+                                        <Offset x="0" y="-5"/>
+                                    </Anchor>
+                                </Anchors>
+                                <Scripts>
+                                    <OnLoad>
+                                        getglobal(this:GetName().."Text"):SetText("Auto Turnin Quests");
+                                    </OnLoad>
+                                    <OnShow>
+                                        GLV_InitAutomationCheckbox(this, {"Automation", "AutoTurninQuests"});
+                                    </OnShow>
+                                    <OnClick>
+                                        GLV_OnAutomationCheckboxClick(this, {"Automation", "AutoTurninQuests"});
+                                    </OnClick>
+                                </Scripts>
+                            </CheckButton>
+
+                            <!-- Auto Take Flight Checkbox -->
+                            <CheckButton name="$parentAutoTakeFlight" inherits="OptionsCheckButtonTemplate">
+                                <Anchors>
+                                    <Anchor point="TOPLEFT" RelativeTo="GLV_SettingsGuidesPageAutoTurninQuests" RelativePoint="BOTTOMLEFT">
+                                        <Offset x="0" y="-5"/>
+                                    </Anchor>
+                                </Anchors>
+                                <Scripts>
+                                    <OnLoad>
+                                        getglobal(this:GetName().."Text"):SetText("Auto Take Flights");
+                                    </OnLoad>
+                                    <OnShow>
+                                        GLV_InitAutomationCheckbox(this, {"Automation", "AutoTakeFlight"});
+                                    </OnShow>
+                                    <OnClick>
+                                        GLV_OnAutomationCheckboxClick(this, {"Automation", "AutoTakeFlight"});
+                                    </OnClick>
+                                </Scripts>
+                            </CheckButton>
+                        </Frames>
 
                     </Frame>
 
