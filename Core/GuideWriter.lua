@@ -449,18 +449,26 @@ end
 --[[ SCROLL MANAGEMENT FUNCTIONS ]]--
 
 -- Calculate scroll position for a specific step
+-- Counts heights of all frames BEFORE the active step in the scroll child
 local function calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
     local targetScroll = 0
     local framesFound = 0
+
     for i = 1, stepIndex - 1 do
-        local stepFrame = getglobal(scrollChild:GetName().."Step"..guideId.."_"..i)
-        if stepFrame and stepFrame.GetHeight then
-            targetScroll = targetScroll + stepFrame:GetHeight()
-            framesFound = framesFound + 1
+        local frameName = scrollChild:GetName().."Step"..guideId.."_"..i
+        local stepFrame = getglobal(frameName)
+        -- Count frames that exist with positive height
+        -- Skipped frames (ongoing + not completed) are never created, so they won't be found
+        if stepFrame then
+            local frameHeight = stepFrame:GetHeight()
+            if frameHeight and frameHeight > 0 then
+                targetScroll = targetScroll + frameHeight
+                framesFound = framesFound + 1
+            end
         end
     end
 
-    -- Only add spacing for frames that actually exist (handles skipped ongoing steps)
+    -- Add spacing for frames that exist
     if framesFound > 0 then
         targetScroll = targetScroll + (math.abs(spacing) * framesFound)
     end
@@ -468,7 +476,7 @@ local function calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
     return math.max(0, targetScroll)
 end
 
--- Scroll to specific step
+-- Scroll to specific step (positions it at top of visible area)
 local function scrollToStep(stepIndex, scrollChild, guideId, spacing)
     if stepIndex > 0 and GLV_MainScrollFrame then
         local targetScroll = calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)

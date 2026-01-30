@@ -14,9 +14,14 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 
 ## Screenshots
 
-![Full Screen](images/screen1.png) ![Guide](images/screen2.png)
+#### Guide Full Screen :
+![Full Screen](images/screen1.png)
 
-![Arrow](images/screen3.png)
+#### Guide Window :
+![Guide](images/screen2.png) ![Guide2](images/screen2b.png)
+
+#### Arrow :
+![Arrow](images/screen3.png) ![Hearthstone](images/screen3b.png) ![Nextguide](images/screen3c.png)
 
 ## Features
 
