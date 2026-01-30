@@ -125,7 +125,7 @@ Add your guide file to `Guides/guides.xml`:
 - **Special Tags**: The guide format uses bracketed tags to indicate actions (quest accept, turnin, navigation targets, etc.)
 - **Multiple Actions**: A single step can contain multiple quest actions that all need completion
 
-For detailed guide syntax documentation, see the CLAUDE.md file or examine existing guides in the `Guides/` folder.
+For detailed guide syntax documentation, see the [TAGS.md](TAGS.md) file or examine existing guides in the `Guides/` folder.
 
 ## Acknowledgments
 
