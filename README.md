@@ -131,7 +131,6 @@ For detailed guide syntax documentation, see the [TAGS.md](TAGS.md) file or exam
 
 - **Sage** - 1-60 Alliance leveling guides
 - **Shagu** - Quest/NPC/Item databases (ShaguDB)
-- **Laytya** - Spells database
 - **Astrolabe** - Coordinate management library
 - **Original Guidelime** - Inspiration
 

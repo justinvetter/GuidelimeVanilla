@@ -4,13 +4,11 @@
     <Include file="enUS\units.lua"/>
     <Include file="enUS\zones.lua"/>
     <Include file="enUS\items.lua"/>
-    
+
     <Include file="areatrigger.lua"/>
     <Include file="items.lua"/>
     <Include file="objects.lua"/>
     <Include file="quests.lua"/>
     <Include file="units.lua"/>
-
-    <Include file="spells.lua"/>
 
 </Ui>

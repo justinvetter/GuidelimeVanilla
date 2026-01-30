@@ -69,6 +69,14 @@ Quest/NPC/Item data from ShaguDB stored in `db/` folder:
 - `VGDB.items.data[id]` - Item coords and drop sources (`.U`, `.O`)
 - `VGDB.zones[locale][id]` - Zone name translations
 
+### Nampower API (Spells)
+
+Spell data is retrieved via Nampower API instead of a local database:
+- `GetSpellRec(spellId)` - Returns full spell record with fields: `name`, `rank`, `spellIconID`, `manaCost`, `school`, `spellLevel`, etc.
+- `GetSpellNameAndRankForId(spellId)` - Returns spell name and rank string
+- `GLV:getSpellName(id)` - Wrapper that uses GetSpellRec to get spell name
+- `GLV:getSpellInfo(id)` - Returns table with name, rank, icon, manaCost, school, level
+
 ### Navigation System
 
 The navigation frame displays different modes based on current step:

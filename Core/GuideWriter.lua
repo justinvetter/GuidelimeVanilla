@@ -455,15 +455,16 @@ local function calculateScrollPosition(stepIndex, scrollChild, guideId, spacing)
     local framesFound = 0
 
     for i = 1, stepIndex - 1 do
-        local frameName = scrollChild:GetName().."Step"..guideId.."_"..i
-        local stepFrame = getglobal(frameName)
-        -- Count frames that exist with positive height
-        -- Skipped frames (ongoing + not completed) are never created, so they won't be found
-        if stepFrame then
-            local frameHeight = stepFrame:GetHeight()
-            if frameHeight and frameHeight > 0 then
-                targetScroll = targetScroll + frameHeight
-                framesFound = framesFound + 1
+        -- Only count frames that were created in this refresh (tracked in CurrentFrameIndices)
+        if GLV.CurrentFrameIndices and GLV.CurrentFrameIndices[i] then
+            local frameName = scrollChild:GetName().."Step"..guideId.."_"..i
+            local stepFrame = getglobal(frameName)
+            if stepFrame then
+                local frameHeight = stepFrame:GetHeight()
+                if frameHeight and frameHeight > 0 then
+                    targetScroll = targetScroll + frameHeight
+                    framesFound = framesFound + 1
+                end
             end
         end
     end
@@ -640,6 +641,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
     GLV.XPProgressTrackers = {}
     GLV.OngoingObjectivesTrackers = {}
 
+    -- Track which step indices have frames created in this refresh
+    GLV.CurrentFrameIndices = {}
+
     local lastLine = nil
     local totalHeight = 0
     local currentGuideId = guideId or guide.id or "Unknown"
@@ -665,34 +669,49 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
 
     -- Calculate activeStep BEFORE creating frames so we can set the right color
     local totalSteps = table.getn(displaySteps)
-    local activeStep = GLV.Settings:GetOption({"Guide", "Guides", currentGuideId, "CurrentStep"}) or 0
 
-    if activeStep == 0 and totalSteps > 0 then
-        -- Find first unchecked step
-        for i2 = 1, totalSteps do
-            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                local orig = displayIndexToOriginalIndex[i2]
-                if orig and not stepState[orig] then
-                    activeStep = i2
-                    break
-                end
+    -- Find first unchecked step (the "real" position in the guide)
+    local firstUncheckedStep = 0
+    for i2 = 1, totalSteps do
+        if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+            local orig = displayIndexToOriginalIndex[i2]
+            if orig and not stepState[orig] then
+                firstUncheckedStep = i2
+                break
             end
         end
-        -- If all completed, use last step with checkbox
-        if activeStep == 0 then
-            for i2 = totalSteps, 1, -1 do
-                if displaySteps[i2] and displaySteps[i2].hasCheckbox then
-                    activeStep = i2
-                    break
-                end
-            end
-        end
-        -- Final fallback
-        if activeStep == 0 then
-            activeStep = 1
-        end
-        GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
     end
+
+    -- Deactivate ongoing steps that are now AFTER the first unchecked step
+    -- This handles the case when user unchecks steps and goes back in the guide
+    if firstUncheckedStep > 0 then
+        local ongoingIndicesToDeactivate = {}
+        for _, ongoingIdx in ipairs(OngoingStepsManager:GetActiveIndices()) do
+            if ongoingIdx > firstUncheckedStep then
+                table.insert(ongoingIndicesToDeactivate, ongoingIdx)
+            end
+        end
+        for _, idx in ipairs(ongoingIndicesToDeactivate) do
+            OngoingStepsManager:Deactivate(idx)
+        end
+    end
+
+    -- Calculate activeStep - use firstUncheckedStep as base
+    local activeStep = firstUncheckedStep
+    if activeStep == 0 and totalSteps > 0 then
+        -- All steps completed, use last step with checkbox
+        for i2 = totalSteps, 1, -1 do
+            if displaySteps[i2] and displaySteps[i2].hasCheckbox then
+                activeStep = i2
+                break
+            end
+        end
+    end
+    -- Final fallback
+    if activeStep == 0 then
+        activeStep = 1
+    end
+    -- Don't save yet - ongoing activation block below might update activeStep
 
     -- Handle ongoing step activation: if active step is an [O] step, activate it and find next non-ongoing step
     local activeStepData = displaySteps[activeStep]
@@ -723,6 +742,9 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
             end
         end
     end
+
+    -- Save activeStep after ongoing activation logic has potentially updated it
+    GLV.Settings:SetOption(activeStep, {"Guide", "Guides", currentGuideId, "CurrentStep"})
 
     -- Render pinned ongoing steps section
     local pinnedChild = getglobal("GLV_MainPinnedStepsChild")
@@ -906,6 +928,12 @@ function GLV:CreateGuideSteps(scrollChild, guide, guideId, callback)
         if not skipThisStep then
         local frameName = scrollChild:GetName().."Step"..guideId.."_"..idx
         local frame = CreateFrame("Frame", frameName, scrollChild)
+
+        -- Ensure parent is set (CreateFrame reuses existing frames without changing parent)
+        frame:SetParent(scrollChild)
+
+        -- Track that this frame was created in this refresh
+        GLV.CurrentFrameIndices[idx] = true
 
         -- Clean up old children if frame is being reused (FontStrings, textures, etc.)
         local regions = {frame:GetRegions()}

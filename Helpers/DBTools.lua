@@ -111,20 +111,38 @@ end
 
 --[[ SPELL RELATED FUNCTIONS ]]--
 
--- Get spell name by spell ID
+-- Get spell name by spell ID (uses Nampower API)
 function GLV:getSpellName(id)
-    if not VGDB or not VGDB.spells then
-        return "UNKNOWN_SPELL"
-    end
-
     local numId = tonumber(id)
-    local spell = VGDB.spells[numId]
+    if not numId then return "UNKNOWN_SPELL" end
 
-    if spell and spell.n then
-        return spell.n
+    -- Use Nampower GetSpellRec API
+    if GetSpellRec then
+        local spellRec = GetSpellRec(numId)
+        if spellRec and spellRec.name then
+            return spellRec.name
+        end
     end
 
-    return "UNKNOWN"
+    return "UNKNOWN_SPELL"
+end
+
+-- Get full spell info by spell ID (uses Nampower API)
+function GLV:getSpellInfo(id)
+    local numId = tonumber(id)
+    if not numId or not GetSpellRec then return nil end
+
+    local spellRec = GetSpellRec(numId)
+    if not spellRec then return nil end
+
+    return {
+        name = spellRec.name,
+        rank = spellRec.rank,
+        icon = spellRec.spellIconID,
+        manaCost = spellRec.manaCost,
+        school = spellRec.school,
+        level = spellRec.spellLevel
+    }
 end
 
 

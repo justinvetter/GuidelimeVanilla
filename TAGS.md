@@ -136,6 +136,7 @@ Tags for tracking progress requirements.
 | `[CI itemId]` | **Collect item** | `[CI 2589] Collect Linen Cloth` |
 | `[CI itemId,count]` | **Collect specific amount** | `[CI 2589,20] Collect 20 Linen Cloth` |
 | `[LE SP spellId]` | **Learn spell** - Auto-completes when learned | `[LE SP 133] Learn Fireball` |
+| `[SP spellId]` | **Display spell name** - Shows spell name inline | `Use [SP 1515] on target` |
 
 ### XP Tag Formats
 
@@ -206,4 +207,4 @@ GLV:RegisterGuide([[
 | **Navigation** | `[G]` `[TAR]` `[P]` `[F]` |
 | **Modifiers** | `[O]` `[OC]` `[A]` |
 | **Actions** | `[H]` `[S]` `[UI]` `[R]` `[V]` |
-| **Progress** | `[XP]` `[CI]` `[LE SP]` |
+| **Progress** | `[XP]` `[CI]` `[LE SP]` `[SP]` |

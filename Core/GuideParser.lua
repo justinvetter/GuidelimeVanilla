@@ -208,6 +208,11 @@ function Parser:parseGuide(guide, group)
                             table.insert(parsedLine.targetIds, tonumber(tagContent))
                             return GLV:getTargetName(tagContent)
 
+                        elseif tag == "SPELL" then
+                            -- Display spell name (standalone [SP id] tag)
+                            local spellName = GLV:getSpellName(tagContent)
+                            return "|c" .. GLV.Colors["LEARN"] .. spellName .. "|r"
+
                         elseif tag == "LEARN" then
                             parsedLine.icon = "Interface\\GossipFrame\\TrainerGossipIcon"
                             parsedLine.hasCheckbox = true
