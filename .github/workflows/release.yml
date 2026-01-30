@@ -19,7 +19,7 @@ jobs:
       - name: Extract Version
         id: get_version
         run: |
-          EXTRACTED_VERSION=$(grep "## Version:" *.toc | head -n 1 | cut -d':' -f2 | xargs)
+          EXTRACTED_VERSION=$(grep "## Version:" *.toc | head -n 1 | cut -d':' -f2 | tr -d '\r\n' | xargs)
           echo "VERSION=$EXTRACTED_VERSION" >> $GITHUB_OUTPUT
 
       # 2. Préparation du package (on crée un dossier au nom de l'addon)
