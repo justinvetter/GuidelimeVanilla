@@ -6,8 +6,8 @@
 ## DefaultState: enabled
 ## SavedVariablesPerCharacter: GuidelimeVanillaDB
 
-libs\libs.xml
-db\initdb.xml
+Assets\libs\libs.xml
+Assets\db\initdb.xml
 
 Core.lua
 Settings.lua
