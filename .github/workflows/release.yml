@@ -28,7 +28,7 @@ jobs:
           # On crée un dossier temporaire pour le zip
           mkdir -p GuidelimeVanilla
           # On copie tout sauf le dossier .git et le dossier de build lui-même
-          rsync -rr . GuidelimeVanilla --exclude ".git*" --exclude "Guidelime_Vanilla" --exclude ".claude" --exclude "*.md"
+          rsync -rr . GuidelimeVanilla --exclude ".git*" --exclude "GuidelimeVanilla" --exclude ".claude" --exclude "*.md"
           # On compresse
           zip -r GuidelimeVanilla-v${{ steps.get_version.outputs.VERSION }}.zip GuidelimeVanilla
 
