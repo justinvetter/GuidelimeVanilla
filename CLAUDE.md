@@ -132,6 +132,7 @@ this                    -- Inside XML event handlers, NOT self
 
 - **No inline textures in text**: The `|Tpath:size|t` escape sequence does NOT work in WoW 1.12. To show icons inline with text, you must create separate Texture/Button frames and position them manually, or use colored text characters as substitutes.
 - **Limited escape sequences**: Only `|cAARRGGBB` (color) and `|r` (reset) work reliably in FontStrings.
+- **Frame methods in scheduled events**: Methods like `IsShown()` may fail when called within scheduled events (e.g., functions queued with `this:Schedule()`). When calculating UI positions in scheduled contexts, rely on frame existence and height checks rather than visibility state.
 
 ## Quest Matching
 
