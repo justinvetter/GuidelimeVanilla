@@ -2,12 +2,12 @@
 ## Title: Guidelime Vanilla
 ## Notes: Guidelime, adapted for Vanilla
 ## Author: Grommey
-## Version: 0.3.7
+## Version: 0.3.8
 ## DefaultState: enabled
 ## SavedVariablesPerCharacter: GuidelimeVanillaDB
 
-libs\libs.xml
-db\initdb.xml
+Assets\libs\libs.xml
+Assets\db\initdb.xml
 
 Core.lua
 Settings.lua

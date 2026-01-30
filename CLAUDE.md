@@ -61,7 +61,7 @@ GLV.Settings:SetOption(value, {"Guide", "CurrentGuide"})
 
 ### Database (VGDB)
 
-Quest/NPC/Item data from ShaguDB stored in `db/` folder:
+Quest/NPC/Item data from ShaguDB stored in `Assets/db/` folder:
 - `VGDB.quests[locale][id]` - Quest data with `.T` (title), `.start`, `.end`, `.obj`
   - `.end` can have `.O` array for quests that turn in at objects instead of NPCs
   - `.start` can have `.O` array for quest-giving objects
