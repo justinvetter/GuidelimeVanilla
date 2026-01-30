@@ -37,7 +37,7 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Quest Objectives Display**: Shows kill/collect progress directly on the navigation frame
 - **Real-time Distance Updates**: Color-coded distance indicators (green=close, yellow=medium, red=far)
 - **Interactive Navigation Icons**: Navigation frame displays context-specific clickable icons:
-  - **Hearthstone Icon**: Click to use hearthstone on [H] steps, auto-completes after cast
+  - **Hearthstone Icon**: Click to use hearthstone on hearthstone steps, auto-completes after cast
   - **Equip Item Icon**: Shows items that need to be equipped
   - **Next Guide Button**: Clickable button on final step to load next guide
 - **Movable Frame**: Hold Shift + drag to reposition the arrow
@@ -47,11 +47,11 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 - **Multi-step Support**: Handles steps with multiple quest actions
 - **Quest State Persistence**: Saves progress between sessions
 - **Automation Settings**: Optional automation features available in Settings > Guides:
-  - **Auto Accept Quests**: Automatically accepts quests matching [QA] tags in the current step
-  - **Auto Turnin Quests**: Automatically turns in quests matching [QT] tags (skips if reward choice required)
-  - **Auto Take Flights**: Automatically takes flights when the current step is [F]
+  - **Auto Accept Quests**: Automatically accepts quests when on a quest accept step
+  - **Auto Turnin Quests**: Automatically turns in quests when on a quest turnin step (skips if reward choice required)
+  - **Auto Take Flights**: Automatically takes flights when on a flight path step
 - **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
-- **Hearthstone Tracking**: Click the hearthstone icon in navigation frame on [H] steps to use hearthstone, step auto-completes after cast
+- **Hearthstone Tracking**: Click the hearthstone icon in navigation frame on hearthstone steps to use hearthstone, step auto-completes after cast
 - **Spell Learning Tracking**: Automatically completes learn spell steps when you train skills or spells (uses Nampower API for profession tier verification)
 - **Quest Abandonment Handling**: Properly updates state when quests are abandoned
 - **XP Progress Bars**: Visual colored progress bars for grind/XP requirement steps showing current progress
@@ -79,41 +79,48 @@ A World of Warcraft Classic (1.12) addon providing an enhanced guide system with
 3. Navigation arrow guides you to objectives
 4. Click checkboxes manually if needed
 
-## Adding Guides
+## Creating Custom Guides
 
-Create a `.lua` file in `Guides/` using this format:
+GuideLime Vanilla supports custom guide creation using a simple tagged format. Create a `.lua` file in the `Guides/` folder and use the guide syntax to define steps.
+
+### Basic Example
+
 ```lua
 GLV:RegisterGuide([[
 [N 1-10 My Guide Name]
 [GA Alliance]
 [D Guide description\\Line 2\\Line 3]
 
-[QA123] Accept quest
-[QC123] Complete objectives
-[QT123] Turn in quest
-[O][QC456] Ongoing step - stays pinned while you continue
-[G 45.5,32 Westfall] Go to specific coordinates
-[TAR823] Navigate to NPC with ID 823
-[P Stormwind] Get flight path
-[F Stormwind] Fly to destination - auto-completes when flight is taken
-[H Stormwind] Use hearthstone - auto-completes when you arrive at destination
-[LE SP 3279] Learn spell (by spell ID) - auto-completes when spell is learned
-[NX 10-20 Next Guide Name]
+Accept quest example step
+Complete quest objectives step
+Turn in quest step
+Ongoing step - stays pinned while you continue
+Go to specific coordinates in Westfall
+Navigate to an NPC
+Get flight path at Stormwind
+Fly to Stormwind - auto-completes when flight is taken
+Use hearthstone at Stormwind - auto-completes when you arrive
+Learn a spell - auto-completes when spell is learned
+Link to next guide (shows clickable button on final step)
 
 Multi-line step text example:\\Take the boat and wait for it to depart.\\Craft bandages or fish while you wait.
 ]], "My Guides")
 ```
 
-Add to `Guides/guides.xml`:
+Add your guide file to `Guides/guides.xml`:
 ```xml
 <Script file="MyGuides\My_Guide.lua"/>
 ```
 
-### Guide Syntax Features
+### Guide Formatting Tips
 
 - **Line Breaks**: Use `\\` (double backslash) to create line breaks in step text and descriptions
-  - Example: `[D Guide info\\Website: example.com\\Discord: link]`
-  - Example: `Take the boat to Auberdine\\Craft bandages while you wait`
+  - Example in description: `[D Guide info\\Website: example.com\\Discord: link]`
+  - Example in steps: `Take the boat to Auberdine\\Craft bandages while you wait`
+- **Special Tags**: The guide format uses bracketed tags to indicate actions (quest accept, turnin, navigation targets, etc.)
+- **Multiple Actions**: A single step can contain multiple quest actions that all need completion
+
+For detailed guide syntax documentation, see the CLAUDE.md file or examine existing guides in the `Guides/` folder.
 
 ## Acknowledgments
 
