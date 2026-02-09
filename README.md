@@ -19,7 +19,6 @@ GuidelimeVanilla is a guide engine - guides are provided as separate addons:
 | Guide Pack | Description |
 |------------|-------------|
 | **[GuidelimeVanilla_Sage](https://github.com/JeromeM/GuidelimeVanilla_Sage)** | Sage 1-60 Alliance leveling guides |
-| **[GuidelimeVanilla_Bustea](https://github.com/JeromeM/GuidelimeVanilla_Bustea)** | (BETA) Bustea 1-60 Horde leveling guides |
 
 Install GuidelimeVanilla + a guide pack addon, then select your guide pack in **Settings > Guides**.
 
@@ -36,97 +35,32 @@ Install GuidelimeVanilla + a guide pack addon, then select your guide pack in **
 
 ## Features
 
-### 📚 Smart Guide System
-- **Dynamic Step Management**: Automatically tracks completed and active quest steps
-- **Checkbox Interface**: Visual progress tracking with clickable checkboxes
-- **Step Highlighting**: Active steps highlighted with distinctive yellow color
-- **Auto-scrolling**: Automatically scrolls to show the current active step
-- **Ongoing Steps**: Special steps stay pinned at top (in blue) while you continue the guide - perfect for "kill X mobs" objectives that span multiple steps
-- **XP Tracking**: Shows progress for grind/XP requirement steps
-- **Guide Pack System**: Install guide packs as separate addons
-- **Faction Filtering**: Guide dropdown automatically filters guides by your character's faction (Alliance/Horde) and race
-- **Multi-Level Guide Dropdown**: For guide packs with more than 30 guides, the dropdown automatically organizes guides into level range categories (Levels 1-10, 11-20, etc.) to prevent overflow and improve navigation. Smaller packs display a flat list.
+### 🗺️ Autonomous Navigation
+- **Built-in arrow** pointing to your next objective — no TomTom needed
+- **Multi-waypoint sequences** that auto-advance as you reach each destination
+- **Dotted path** on minimap and world map showing the way (pfQuest-compatible)
+- **Live quest progress** (kill/collect counters) displayed on the navigation frame
+- **Clickable action icons**: hearthstone, equip item, use item, next guide — one click does it all
+- **Corpse navigation**: die and the arrow guides you back with a ghostly blue tint
 
-### 🗺️ Autonomous Navigation System
-- **Custom Arrow Display**: Built-in navigation arrow (no TomTom needed!)
-- **Automatic Waypoints**: Creates waypoints for quest objectives automatically
-- **Multi-waypoint Navigation**: Steps with multiple coordinates create sequential waypoints that auto-advance when you reach each destination (within 5 yards)
-- **Intelligent Waypoint Transitions**: When you reach a TAR (target NPC) waypoint, navigation automatically recalculates and advances to the next quest objective location
-- **Persistent Waypoint Tracking**: Visited TAR waypoints are saved and persist through /reload
-- **Smart Coordinate Selection**: Automatically selects the best location based on step type (quest giver, turn-in NPC, or objective area)
-- **Smart TAR Filtering**: TAR tags on quest lines are intelligently skipped - the quest system handles navigation for quest accept/complete/turnin steps
-- **Flexible Coordinate Formats**: Supports multiple coordinate format styles
-- **Zone-Aware Navigation**: Arrow automatically hides when in different zones and updates when you enter the correct zone
-- **Navigation Fallback Mode**: When arrow navigation is unavailable (e.g., Deeprun Tram, different zone), steps with use-item actions display a clickable item icon with real-time quest progress instead of hiding completely
-- **Quest Objectives Display**: Shows kill/collect progress directly on the navigation frame
-- **Real-time Distance Updates**: Color-coded distance indicators (green=close, yellow=medium, red=far)
-- **Dotted Path Overlays**: Visual path indicators on minimap and world map:
-  - **Minimap Path**: Shows dotted line from player to waypoint (8 blue dots)
-  - **World Map Path**: Shows dotted line from player to waypoint (12 blue dots)
-  - **pfQuest Integration**: Automatically hides pfQuest nodes when paths are enabled to prevent clutter
-  - Both paths can be toggled independently in Settings > Display
-- **Interactive Navigation Icons**: Navigation frame displays context-specific clickable icons:
-  - **Hearthstone Icon**: Click to use hearthstone on hearthstone steps, auto-completes after cast
-  - **Trainer Icon**: Shows trainer icon for train steps
-  - **Equip Item Icon**: Shows items that need to be equipped
-  - **Use Item Icon**: When arrow is unavailable (different zone/instance), displays clickable item icon with real-time quest progress for use-item steps
-  - **Next Guide Button**: Clickable button on final step to load next guide
-  - **XP Progress Display**: When on an XP requirement step, replaces the arrow with a purple progress bar showing real-time XP values (current/target). Bar turns green when requirement is met.
-- **Movable Frame**: Hold Shift + drag to reposition the arrow
-- **Death/Corpse Navigation**: When you die, the navigation arrow automatically switches to guide you to your corpse location with a ghostly blue tint. Corpse position persists across disconnects. Normal guide navigation automatically restores when you resurrect.
+### 📚 Smart Guide Engine
+- **Hands-free tracking**: quests, items, spells, gear — everything auto-detects and checks off
+- **Ongoing steps** stay pinned at top for long objectives like "grind to level X"
+- **XP progress bar** with real-time tracking for grind steps
+- **Guide packs** as separate addons — install what you need, or create your own
 
-### 🎯 Quest Tracking
-- **Automatic Progress**: Checks off steps when quests are accepted, completed, or turned in
-- **Individual Objective Tracking**: Track specific quest objectives using `[QC questId,objectiveIndex]` syntax for granular progress tracking
-- **Multi-step Support**: Handles steps with multiple quest actions
-- **Quest State Persistence**: Saves progress between sessions
-- **Smart Quest Matching**: Improved handling of multi-part quests with identical names
-- **Automation Settings**: Optional automation features available in Settings > Guides:
-  - **Auto Accept Quests**: Automatically accepts quests when on a quest accept step
-  - **Auto Turnin Quests**: Automatically turns in quests when on a quest turnin step (skips if reward choice required)
-  - **Auto Take Flights**: Automatically takes flights when on a flight path step
-- **Flight Path Tracking**: Automatically detects discovered flight paths and flight destinations
-- **Hearthstone Tracking**: Click the hearthstone icon in navigation frame on hearthstone steps to use hearthstone, step auto-completes after cast. Binding location matching now checks inn name, subzone, and zone for improved accuracy
-- **Spell Learning Tracking**: Automatically completes learn spell steps when you train skills, spells, or weapon proficiencies. Detects profession tiers, regular spells, and weapon skills (uses Nampower API for spell data)
-- **Item Collection Tracking**: Automatically completes collect item steps when you acquire the required items in your bags
-- **Equipment Tracking**: Automatically completes equip item steps when you equip the specified items
-- **Quest Abandonment Handling**: Properly updates state when quests are abandoned
-- **XP Progress Tracking**: XP requirement steps show real-time progress. Active XP steps display a purple progress bar in the navigation frame (where the arrow normally appears) with live XP values. Ongoing (pinned) XP steps show inline progress text in the guide window.
+### ⚡ Automation
+- Auto-accept / auto-turnin quests and auto-take flights on matching steps
+- All optional, all toggleable in Settings
 
-### 🌟 Talent Suggestion System
-- **Level-up Toast Notifications**: When you gain a level and have an unspent talent point, a persistent notification appears at the top of your screen showing which talent to choose. The notification stays visible until you click it or spend the talent point.
-- **Talent Frame Highlighting**: Open your talent frame to see the recommended talent highlighted with a green border
-- **Customizable Templates**: Choose from different talent builds for your class in Settings > Talents
-- **Template Selection**: Enable or disable talent suggestions and select your preferred build (leveling, endgame, etc.)
-- **All Classes Supported**: Complete leveling templates for all 9 classes optimized for TurtleWoW:
-  - Warrior (Arms), Paladin (Retribution, Crimson Paladin), Hunter (Beast Mastery)
-  - Rogue (Combat Swords), Priest (Discipline), Shaman (Enhancement)
-  - Mage (Frost), Warlock (Affliction), Druid (Feral)
-- **Respec Support**: Talent templates can define a respec transition point to switch builds mid-leveling (for developers creating custom templates)
+### 🌟 Talent Suggestions
+- **Level-up popup** tells you exactly which talent to pick next
+- **Green glow** on the recommended talent in your talent frame
+- Pre-built leveling templates for all 9 classes (TurtleWoW optimized)
 
-### 🎨 User Interface
-- **Minimap Button**: Convenient minimap button for quick access:
-  - **Left-Click**: Toggle guide window visibility
-  - **Right-Click**: Open settings window
-  - **Ctrl+Right-Click and Drag**: Move the button around the minimap edge
-  - **Tooltip**: Shows available controls on mouseover
-  - **Position Persistence**: Button position is saved and restored across sessions
-- **Guide Window Persistence**: Guide window visibility state (shown/hidden) persists across /reload
-- **Compact Modern Design**: Settings UI features a sleek dark theme (600x450) with card-based sections and blue/violet accent colors
-- **Active Tab Highlighting**: Visual indicator in left menu shows the currently selected settings page
-- **Reload Confirmation Dialog**: When closing settings after changing display options, a dialog prompts to reload the UI for changes to take effect
-- **Clickable Icons**: Special action icons (Hearthstone, items to use)
-- **Color-coded Steps**: Visual distinction between step types and states
-- **Quest Tags**: Colored markers for accept and turnin steps
-- **Close Button**: Hide the guide window by clicking the close button - shows a chat message with `/glv show` command to reopen
-- **Display Settings**: Customizable UI scaling and display options available in Settings > Display:
-  - **Guide Text Scale** (0.8-1.5): Adjust the size of guide step text
-  - **Navigation Scale** (0.8-1.5): Adjust the size of the navigation arrow frame
-  - **Minimap Path**: Toggle dotted path overlay on minimap toward waypoint
-  - **World Map Path**: Toggle dotted path overlay on world map toward waypoint
-  - **Show Minimap Button**: Toggle visibility of the minimap button
-  - **Guide Window Layer**: Dropdown to control guide window stacking order (BACKGROUND, LOW, MEDIUM, HIGH, DIALOG) for compatibility with other addons
-  - **Manual Reload**: Changes to display settings now require manual UI reload confirmation instead of automatic reload
+### 🎨 Clean UI
+- **Minimap button** for quick access (left-click guide, right-click settings)
+- Modern dark theme with adjustable text and arrow scale
 
 ## Installation
 
@@ -136,18 +70,14 @@ Install GuidelimeVanilla + a guide pack addon, then select your guide pack in **
 
 ## Usage
 
-1. Select a guide from the dropdown menu
-2. Follow the steps - checkboxes update automatically
-3. Navigation arrow guides you to objectives
-4. Click checkboxes manually if needed
+1. Select a guide pack in **Settings > Guides** and click **Load**
+2. Follow the steps — checkboxes update automatically as you play
+3. The navigation arrow guides you to each objective
 
 ### Slash Commands
 
-- `/glv show` or `/guidelime show` - Show the guide window
-- `/glv hide` or `/guidelime hide` - Hide the guide window
-- `/glv settings` or `/guidelime settings` - Open the settings window
-
-The close button on the guide window will hide it and display a chat message with instructions to reopen using `/glv show`
+- `/glv show` / `/glv hide` - Toggle the guide window
+- `/glv settings` - Open settings
 
 ## Creating Custom Guide Packs
 
