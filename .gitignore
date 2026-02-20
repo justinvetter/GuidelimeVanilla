@@ -1,2 +1,4 @@
 .vs
 backup_*
+.planning/
+.claude/
