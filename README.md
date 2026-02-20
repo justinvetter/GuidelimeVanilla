@@ -39,7 +39,7 @@ Install GuidelimeVanilla + a guide pack addon, then select your guide pack in **
 - **Automatic quest tracking** — accept, complete, turnin, chain quests, objective progress
 - **Item & skill tracking** — collection, equipment, profession progress bars
 - **Talent suggestions** — level-up popup, talent frame highlighting, templates for all 9 classes
-- **Smart automation** — auto-take flights, auto-skip impossible turnins, quest sync on guide load
+- **Smart automation** — auto-take flights, auto-skip impossible turnins, quest sync on guide load, optional pfQuest node hiding when a path is active
 - **Clean UI** — minimap button, adjustable scaling, clickable URLs, dark theme
 
 For the full feature list, see the **[Wiki - Features](https://github.com/JeromeM/GuidelimeVanilla/wiki/Features)**.
