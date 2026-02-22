@@ -520,7 +520,7 @@ local function CreateToolbar(parent, yStart)
     CreateToolbarButton(toolbar, "GLV_EditorBtn_G:Pos", "G:Pos", x, rowY, 38, function()
         local tag, err = Editor:GetPlayerPositionTag()
         if tag then
-            Editor:InsertTag(getEditBox(), tag .. " ")
+            Editor:InsertTag(getEditBox(), tag)
         else
             DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Editor]|r " .. (err or "Unknown error"))
         end
@@ -537,14 +537,20 @@ local function CreateToolbar(parent, yStart)
 
     -- Group: Items
     local itemTags = {
-        {"CI", true, 24, "Collect Item (auto-completes)"},
-        {"UI", true, 24, "Use Item"},
+        {"CI", true,  24, "Collect Item (auto-completes)"},
+        {"UI", true,  24, "Use Item"},
+        {"R",  "[R]", 22, "Repair"},
+        {"V",  "[V]", 22, "Vendor / Sell"},
     }
     for _, def in ipairs(itemTags) do
         local label, action, w, tip = def[1], def[2], def[3], def[4]
-        CreateToolbarButton(toolbar, "GLV_EditorBtn_" .. label, label, x, rowY, w, function()
-            GLV_Editor_ShowTagPopup(label)
-        end, tip)
+        local callback
+        if action == true then
+            callback = function() GLV_Editor_ShowTagPopup(label) end
+        else
+            callback = function() Editor:InsertTag(getEditBox(), action) end
+        end
+        CreateToolbarButton(toolbar, "GLV_EditorBtn_" .. label, label, x, rowY, w, callback, tip)
         x = x + w + GAP
     end
 
@@ -565,7 +571,7 @@ local function CreateToolbar(parent, yStart)
         if action == true then
             callback = function() GLV_Editor_ShowTagPopup(label) end
         else
-            callback = function() Editor:InsertTag(getEditBox(), action .. " ") end
+            callback = function() Editor:InsertTag(getEditBox(), action) end
         end
         CreateToolbarButton(toolbar, "GLV_EditorBtn_" .. label, label, x, rowY, w, callback, tip)
         x = x + w + GAP
@@ -587,7 +593,7 @@ local function CreateToolbar(parent, yStart)
         if action == true then
             callback = function() GLV_Editor_ShowTagPopup(label) end
         else
-            callback = function() Editor:InsertTag(getEditBox(), action .. " ") end
+            callback = function() Editor:InsertTag(getEditBox(), action) end
         end
         CreateToolbarButton(toolbar, "GLV_EditorBtn_" .. label, label, x, rowY, w, callback, tip)
         x = x + w + GAP
@@ -610,21 +616,31 @@ local function CreateToolbar(parent, yStart)
         if action == true then
             callback = function() GLV_Editor_ShowTagPopup(label) end
         else
-            callback = function() Editor:InsertTag(getEditBox(), action .. " ") end
+            callback = function() Editor:InsertTag(getEditBox(), action) end
         end
         CreateToolbarButton(toolbar, "GLV_EditorBtn_" .. label, label, x, rowY, w, callback, tip)
         x = x + w + GAP
     end
 
-    -- LastQ button (rightmost)
-    CreateToolbarButton(toolbar, "GLV_EditorBtn_LastQ", "LastQ", FRAME_WIDTH - 80, rowY, 48, function()
+    -- Last Accepted + Last Turned-in buttons (rightmost)
+    local tbW = FRAME_WIDTH - 20   -- toolbar width
+    CreateToolbarButton(toolbar, "GLV_EditorBtn_LastQ", "Last Accepted", tbW - 2 - 84 - GAP - 96, rowY, 96, function()
         local tag = Editor:GetLastAcceptedQuestTag()
         if tag then
-            Editor:InsertTag(getEditBox(), tag .. " ")
+            Editor:InsertTag(getEditBox(), tag)
         else
             DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Editor]|r No recently accepted quest found")
         end
     end, "Insert last accepted quest [QA]")
+
+    CreateToolbarButton(toolbar, "GLV_EditorBtn_LastT", "Last Turned-in", tbW - 2 - 84, rowY, 84, function()
+        local tag = Editor:GetLastTurninQuestTag()
+        if tag then
+            Editor:InsertTag(getEditBox(), tag)
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Editor]|r No recently turned in quest found")
+        end
+    end, "Insert last turned in quest [QT]")
 
     return toolbar
 end
@@ -1841,6 +1857,8 @@ function GLV_Editor_ShowTagPopup(tagType)
     if f2Label then f2Label:Show() end
     if preview then preview:SetText("") end
     if questDD then questDD:Hide() end
+    local targetBtn = getglobal("GLV_EditorTagPopupTargetBtn")
+    if targetBtn then targetBtn:Hide() end
 
     -- Configure based on tag type
     if tagType == "QA" or tagType == "QC" or tagType == "QT" then
@@ -1901,12 +1919,12 @@ function GLV_Editor_ShowTagPopup(tagType)
             if tagType == "QC" then
                 local obj = f2Box:GetText() or ""
                 if obj ~= "" then
-                    Editor:InsertTag(editBox, "[QC" .. id .. "," .. obj .. "] ")
+                    Editor:InsertTag(editBox, "[QC" .. id .. "," .. obj .. "]")
                 else
-                    Editor:InsertTag(editBox, "[QC" .. id .. "] ")
+                    Editor:InsertTag(editBox, "[QC" .. id .. "]")
                 end
             else
-                Editor:InsertTag(editBox, "[" .. tagType .. id .. "] ")
+                Editor:InsertTag(editBox, "[" .. tagType .. id .. "]")
             end
             popup:Hide()
         end)
@@ -1920,6 +1938,47 @@ function GLV_Editor_ShowTagPopup(tagType)
         f2Box:SetText("")
         popup:SetHeight(195)
         questDD:Show()
+
+        -- Shrink ID field to make room for button
+        f1Box:SetWidth(100)
+
+        -- "My Target" button: fills ID from current target
+        local targetBtn = getglobal("GLV_EditorTagPopupTargetBtn")
+        if not targetBtn then
+            targetBtn = CreateFrame("Button", "GLV_EditorTagPopupTargetBtn", popup, "UIPanelButtonTemplate")
+            targetBtn:SetWidth(80)
+            targetBtn:SetHeight(20)
+            targetBtn:SetText("My Target")
+            targetBtn:GetFontString():SetFont("Fonts\\FRIZQT__.TTF", 9)
+        end
+        targetBtn:ClearAllPoints()
+        targetBtn:SetPoint("LEFT", f1Box, "RIGHT", 4, 0)
+        targetBtn:SetScript("OnClick", function()
+            local tName = UnitName("target")
+            if not tName then
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Editor]|r No target selected")
+                return
+            end
+            -- Search VGDB for exact name match
+            local Localized = VGDB and VGDB["units"] and (VGDB["units"]["enUS"] or VGDB["units"]["enGB"])
+            if not Localized then return end
+            local foundId = nil
+            for npcId, npcName in pairs(Localized) do
+                if type(npcName) == "string" and npcName == tName then
+                    foundId = npcId
+                    break
+                end
+            end
+            if foundId then
+                f1Box:SetText(tostring(foundId))
+                if preview then
+                    preview:SetText("|cFFAAAAAA" .. tName .. " (ID: " .. foundId .. ")|r")
+                end
+            else
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Editor]|r NPC \"" .. tName .. "\" not found in database")
+            end
+        end)
+        targetBtn:Show()
 
         -- ID field → preview NPC name
         f1Box:SetScript("OnTextChanged", function()
@@ -1979,7 +2038,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local id = f1Box:GetText() or ""
             if id == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[TAR" .. id .. "] ")
+            Editor:InsertTag(editBox, "[TAR" .. id .. "]")
             popup:Hide()
         end)
 
@@ -2008,7 +2067,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local count = f2Box:GetText() or "1"
             if id == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[CI" .. id .. "," .. count .. "] ")
+            Editor:InsertTag(editBox, "[CI" .. id .. "," .. count .. "]")
             popup:Hide()
         end)
 
@@ -2034,7 +2093,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local id = f1Box:GetText() or ""
             if id == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[UI" .. id .. "] ")
+            Editor:InsertTag(editBox, "[UI" .. id .. "]")
             popup:Hide()
         end)
 
@@ -2052,9 +2111,9 @@ function GLV_Editor_ShowTagPopup(tagType)
             local loc = f1Box:GetText() or ""
             local editBox = getglobal("GLV_EditorEditBox")
             if loc ~= "" then
-                Editor:InsertTag(editBox, "[" .. tagType .. " " .. loc .. "] ")
+                Editor:InsertTag(editBox, "[" .. tagType .. " " .. loc .. "]")
             else
-                Editor:InsertTag(editBox, "[" .. tagType .. "] ")
+                Editor:InsertTag(editBox, "[" .. tagType .. "]")
             end
             popup:Hide()
         end)
@@ -2137,7 +2196,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local id = f1Box:GetText() or ""
             if id == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[LE SP " .. id .. "] ")
+            Editor:InsertTag(editBox, "[LE SP " .. id .. "]")
             popup:Hide()
         end)
 
@@ -2169,7 +2228,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local level = f2Box:GetText() or ""
             if skill == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[SK " .. skill .. " " .. level .. "] ")
+            Editor:InsertTag(editBox, "[SK " .. skill .. " " .. level .. "]")
             popup:Hide()
         end)
 
@@ -2193,9 +2252,9 @@ function GLV_Editor_ShowTagPopup(tagType)
             if lvl == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
             if pct ~= "" then
-                Editor:InsertTag(editBox, "[XP" .. lvl .. "-" .. pct .. "] ")
+                Editor:InsertTag(editBox, "[XP" .. lvl .. "-" .. pct .. "]")
             else
-                Editor:InsertTag(editBox, "[XP" .. lvl .. "] ")
+                Editor:InsertTag(editBox, "[XP" .. lvl .. "]")
             end
             popup:Hide()
         end)
@@ -2220,7 +2279,7 @@ function GLV_Editor_ShowTagPopup(tagType)
             local val = f1Box:GetText() or ""
             if val == "" then popup:Hide(); return end
             local editBox = getglobal("GLV_EditorEditBox")
-            Editor:InsertTag(editBox, "[A " .. val .. "] ")
+            Editor:InsertTag(editBox, "[A " .. val .. "]")
             popup:Hide()
         end)
     end

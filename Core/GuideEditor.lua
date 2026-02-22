@@ -285,6 +285,31 @@ function GuideEditor:GetLastAcceptedQuestTag()
     return nil
 end
 
+-- Get last turned in quest as [QT id] tag
+function GuideEditor:GetLastTurninQuestTag()
+    if not GLV.QuestTracker or not GLV.QuestTracker.store then return nil end
+
+    local completed = GLV.QuestTracker.store.Completed
+    if not completed then return nil end
+
+    local latestId = nil
+    local latestTime = 0
+
+    for id, data in pairs(completed) do
+        if type(data) == "table" and data.timestamp then
+            if data.timestamp > latestTime then
+                latestTime = data.timestamp
+                latestId = id
+            end
+        end
+    end
+
+    if latestId then
+        return "[QT" .. latestId .. "]"
+    end
+    return nil
+end
+
 
 --[[ IMPORT ]]--
 
