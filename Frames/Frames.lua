@@ -583,6 +583,40 @@ function GLV_ApplyFrameStrata(strata)
     end
 end
 
+-- Visible steps options: 3, 5, or 10 (no "All")
+local VISIBLE_STEPS_OPTIONS = { {3, "3"}, {5, "5"}, {10, "10"} }
+
+-- Initialize visible steps dropdown (guide window step list height cap)
+function GLV_InitVisibleStepsDropdown(dropdown)
+    local current = GLV.Settings:GetOption({"UI", "GuideVisibleSteps"})
+    if current == nil or current == 0 then
+        current = 10
+        GLV.Settings:SetOption(10, {"UI", "GuideVisibleSteps"})
+    end
+
+    UIDropDownMenu_Initialize(dropdown, function()
+        for _, opt in ipairs(VISIBLE_STEPS_OPTIONS) do
+            local val, text = opt[1], opt[2]
+            local info = {}
+            info.text = text
+            info.value = val
+            info.func = function()
+                local chosen = this.value
+                UIDropDownMenu_SetSelectedValue(dropdown, chosen)
+                UIDropDownMenu_SetText(tostring(chosen), dropdown)
+                GLV.Settings:SetOption(chosen, {"UI", "GuideVisibleSteps"})
+                if GLV.RefreshGuide then
+                    GLV:RefreshGuide()
+                end
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+
+    UIDropDownMenu_SetSelectedValue(dropdown, current)
+    UIDropDownMenu_SetText(tostring(current), dropdown)
+end
+
 -- Handle navigation scale slider change
 function GLV_OnNavScaleSliderChanged(slider, settingKeys)
     local value = slider:GetValue()
