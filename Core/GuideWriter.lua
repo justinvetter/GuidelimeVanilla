@@ -166,9 +166,10 @@ local function AdjustScrollFramePosition(pinnedHeight)
 
     if not scrollFrame then return end
 
-    local visibleSteps = (GLV.Settings and GLV.Settings.GetOption and GLV.Settings:GetOption({"UI", "GuideVisibleSteps"})) or 10
-    if visibleSteps == 0 then
-        visibleSteps = 10
+    -- Guide frame size: 0 = Big (full height), 3 = Small, 6 = Medium
+    local visibleSteps = (GLV.Settings and GLV.Settings.GetOption and GLV.Settings:GetOption({"UI", "GuideVisibleSteps"}))
+    if visibleSteps == nil then
+        visibleSteps = 0
     end
     local maxScrollHeight = MaxScrollHeight
     if visibleSteps > 0 then

@@ -616,8 +616,8 @@
                                             </Anchors>
                                             <Color r="0.42" g="0.55" b="0.83"/>
                                         </FontString>
-                                        <!-- Visible Steps Label -->
-                                        <FontString name="GLV_SettingsDisplayPageVisibleStepsTitle" font="Fonts\FRIZQT__.TTF" text="Visible Steps" justifyH="LEFT">
+                                        <!-- Guide frame size Label -->
+                                        <FontString name="GLV_SettingsDisplayPageVisibleStepsTitle" font="Fonts\FRIZQT__.TTF" text="Guide frame size" justifyH="LEFT">
                                             <FontHeight><AbsValue val="11"/></FontHeight>
                                             <Anchors>
                                                 <Anchor point="TOPLEFT" RelativeTo="$parent" RelativePoint="TOPLEFT">
